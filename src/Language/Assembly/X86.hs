@@ -1,6 +1,6 @@
 --------------------------------------------------------------------------
 -- |
--- Module      :  Text.Disassembler.X86Disassembler
+-- Module      :  Language.Assembly.X86
 -- Copyright   :  (c) Martin Grabmueller and Dirk Kleeblatt
 -- License     :  BSD3
 -- 
@@ -55,7 +55,7 @@
 -- track of the current position, etc.
 --------------------------------------------------------------------------
 
-module Text.Disassembler.X86Disassembler(
+module Language.Assembly.X86 (
   -- * Types
   Opcode,
   Operand(..),

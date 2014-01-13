@@ -21,4 +21,4 @@ library
     ,                 parsec     >= 1   && < 4
 
   extensions:         FlexibleContexts
-  exposed-modules:    Text.Disassembler.X86Disassembler
+  exposed-modules:    Language.Assembly.X86
