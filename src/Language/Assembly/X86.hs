@@ -3,7 +3,7 @@
 -- Module      :  Language.Assembly.X86
 -- Copyright   :  (c) Martin Grabmueller and Dirk Kleeblatt
 -- License     :  BSD3
--- 
+--
 -- Maintainer  :  martin@grabmueller.de,klee@cs.tu-berlin.de
 -- Stability   :  provisional
 -- Portability :  portable
@@ -13,7 +13,7 @@
 -- This is a disassembler for object code for the x86 architecture.
 -- It provides functions for disassembling byte arrays, byte lists and
 -- memory blocks containing raw binary code.
--- 
+--
 -- Features:
 --
 -- - Disassembles memory blocks, lists or arrays of bytes into lists of
@@ -30,7 +30,7 @@
 --
 -- - Displacements are shown in decimal, with sign if negative.
 --
--- Missing: 
+-- Missing:
 --
 -- - LOCK and repeat prefixes are recognized, but not contained in the
 --   opcodes of instructions.
@@ -89,414 +89,414 @@ import Foreign
 -- | All opcodes are represented by this enumeration type.
 
 data Opcode = InvalidOpcode
-	    | AAA
-	    | AAD
-	    | AAM
-	    | AAS
-	    | ADC
-	    | ADD
-	    | ADDPD
-	    | ADDPS
-	    | ADDSD
-	    | ADDSS
-	    | ADDSUBPD
-	    | ADDUBPS
-	    | AND
-	    | ANDNPD
-	    | ANDNPS
-	    | ANDPD
-	    | ANDPS
-	    | ARPL
-	    | BOUND
-	    | BSF
-	    | BSR
-	    | BT
-	    | BTC
-	    | BTR
-	    | BTS
-	    | CALL
-	    | CALLF
-	    | CBW
-	    | CDQ
-	    | CDQE
-	    | CLC
-	    | CLD
-	    | CLFLUSH
-	    | CLI
-	    | CLTS
-	    | CMC
-	    | CMOVA
-	    | CMOVB
-	    | CMOVBE
-	    | CMOVE
-	    | CMOVG
-	    | CMOVGE
-	    | CMOVL
-	    | CMOVLE
-	    | CMOVNB
-	    | CMOVNE
-	    | CMOVNO
-	    | CMOVNP
-	    | CMOVNS
-	    | CMOVO
-	    | CMOVP
-	    | CMOVS
-	    | CMP
-	    | CMPS
-	    | CMPXCHG
-	    | CMPXCHG16B
-	    | CMPXCHG8B
-	    | COMISD
-	    | COMISS
-	    | CPUID
-	    | CWD
-	    | CWDE
-	    | DAA
-	    | DAS
-	    | DEC
-	    | DIV
-	    | DIVPD
-	    | DIVPS
-	    | DIVSD
-	    | DIVSS
-	    | EMMS
-	    | ENTER
-	    | FABS
-	    | FADD
-	    | FADDP
-	    | FBLD
-	    | FBSTP
-	    | FCHS
-	    | FCLEX
-	    | FCMOVB
-	    | FCMOVBE
-	    | FCMOVE
-	    | FCMOVNB
-	    | FCMOVNBE
-	    | FCMOVNE
-	    | FCMOVNU
-	    | FCMOVU
-	    | FCOM
-	    | FCOMI
-	    | FCOMIP
-	    | FCOMP
-	    | FCOMPP
-	    | FDIV
-	    | FDIVP
-	    | FDIVR
-	    | FDIVRP
-	    | FFREE
-	    | FIADD
-	    | FICOM
-	    | FICOMP
-	    | FIDIV
-	    | FIDIVR
-	    | FILD
-	    | FIMUL
-	    | FINIT
-	    | FIST
-	    | FISTP
-	    | FISTPP
-	    | FISTTP
-	    | FISUB
-	    | FISUBR
-	    | FLD
-	    | FLD1
-	    | FLDCW
-	    | FLDENV
-	    | FLDL2E
-	    | FLDL2T
-	    | FLDLG2
-	    | FLDLN2
-	    | FLDPI
-	    | FLDZ
-	    | FMUL
-	    | FMULP
-	    | FNOP
-	    | FRSTOR
-	    | FSAVE
-	    | FST
-	    | FSTCW
-	    | FSTENV
-	    | FSTP
-	    | FSTSW
-	    | FSUB
-	    | FSUBP
-	    | FSUBR
-	    | FSUBRP
-	    | FTST
-	    | FUCOM
-	    | FUCOMI
-	    | FUCOMIP
-	    | FUCOMP
-	    | FUCOMPP
-	    | FXAM
-	    | FXCH
-	    | FXRSTOR
-	    | FXSAVE
-	    | HADDPD
-	    | HADDPS
-	    | HLT
-	    | HSUBPD
-	    | HSUBPS
-	    | IDIV
-	    | IMUL
-	    | BSWAP
-	    | IN
-	    | INC
-	    | INS
-	    | INT
-	    | INT3
-	    | INTO
-	    | INVD
-	    | INVLPG
-	    | IRET
-	    | JA
-	    | JB
-	    | JBE
-	    | JCXZ
-	    | JE
-	    | JG
-	    | JGE
-	    | JL
-	    | JLE
-	    | JMP
-	    | JMPF
-	    | JMPN
-	    | JNB
-	    | JNE
-	    | JNO
-	    | JNP
-	    | JNS
-	    | JO
-	    | JP
-	    | JS
-	    | LAHF
-	    | LAR
-	    | LDDQU
-	    | LDMXCSR
-	    | LDS
-	    | LEA
-	    | LEAVE
-	    | LES
-	    | LFENCE
-	    | LFS
-	    | LGDT
-	    | LGS
-	    | LIDT
-	    | LLDT
-	    | LMSW
-	    | LODS
-	    | LOOP
-	    | LOOPE
-	    | LOOPNE
-	    | LSL
-	    | LSS
-	    | LTR
-	    | MASKMOVQ
-	    | MAXPD
-	    | MAXPS
-	    | MAXSD
-	    | MAXSS
-	    | MFENCE
-	    | MINPD
-	    | MINPS
-	    | MINSD
-	    | MINSS
-	    | MONITOR
-	    | MOV 
-	    | MOVAPD
-	    | MOVAPS
-	    | MOVDDUP
-	    | MOVHPD
-	    | MOVHPS
-	    | MOVLHPS
-	    | MOVLPD
-	    | MOVLPS
-	    | MOVLSDUP
-	    | MOVMSKPD
-	    | MOVMSKPS
-	    | MOVNTDQ
-	    | MOVNTPD
-	    | MOVNTPS
-	    | MOVNTQ
-	    | MOVQ
-	    | MOVS
-	    | MOVSD
-	    | MOVSLDUP
-	    | MOVSS
-	    | MOVSXB
-	    | MOVSXD
-	    | MOVSXW
-	    | MOVUPD
-	    | MOVUPS
-	    | MOVZXB
-	    | MOVZXW
-	    | MUL
-	    | MULPD
-	    | MULPS
-	    | MULSD
-	    | MULSS
-	    | MWAIT
-	    | NEG
-	    | NOP
-	    | NOT
-	    | OR
-	    | ORPD
-	    | ORPS
-	    | OUT
-	    | OUTS
-	    | PADDB
-	    | PADDD
-	    | PADDQ
-	    | PADDSB
-	    | PADDSW
-	    | PADDUSB
-	    | PADDUSW
-	    | PADDW
-	    | PAND
-	    | PANDN
-	    | PAUSE
-	    | PAVGB
-	    | PAVGW
-	    | PMADDWD
-	    | PMAXSW
-	    | PMAXUB
-	    | PMINSW
-	    | PMINUB
-	    | PMOVMSKB
-	    | PMULHUW
-	    | PMULHW
-	    | PMULLW
-	    | PMULUDQ
-	    | POP
-	    | POPA
-	    | POPAD
-	    | POPF
-	    | POPFD
-	    | POPFQ
-	    | POR
-	    | PREFETCHNTA
-	    | PREFETCHT0
-	    | PREFETCHT1
-	    | PREFETCHT2
-	    | PSADBW
-	    | PSLLD
-	    | PSLLDQ
-	    | PSLLQ
-	    | PSLLW
-	    | PSRAD
-	    | PSRAW
-	    | PSRLD
-	    | PSRLDQ
-	    | PSRLQ
-	    | PSRLW
-	    | PSUBB
-	    | PSUBD
-	    | PSUBQ
-	    | PSUBSB
-	    | PSUBSQ
-	    | PSUBUSB
-	    | PSUBUSW
-	    | PSUBW
-	    | PUSH
-	    | PUSHA
-	    | PUSHAD
-	    | PUSHF
-	    | PUSHFD
-	    | PUSHFQ
-	    | PXOR
-	    | RCL
-	    | RCPPS
-	    | RCPSS
-	    | RCR
-	    | RDMSR
-	    | RDPMC
-	    | RDTSC
-	    | RET
-	    | RETF
-	    | ROL
-	    | ROR
-	    | RSM
-	    | RSQRTPS
-	    | RSQRTSS
-	    | SAHF
-	    | SAR
-	    | SBB
-	    | SCAS
-	    | SETA
-	    | SETB
-	    | SETBE
-	    | SETE
-	    | SETG
-	    | SETGE
-	    | SETL
-	    | SETLE
-	    | SETNB
-	    | SETNE
-	    | SETNO
-	    | SETNP
-	    | SETNS
-	    | SETO
-	    | SETP
-	    | SETS
-	    | SFENCE
-	    | SGDT
-	    | SHL
-	    | SHLD
-	    | SHR
-	    | SHRD
-	    | SIDT
-	    | SLDT
-	    | SMSW
-	    | SQRTPD
-	    | SQRTPS
-	    | SQRTSD
-	    | SQRTSS
-	    | STC
-	    | STD
-	    | STI
-	    | STMXCSR
-	    | STOS
-	    | STR
-	    | SUB
-	    | SUBPD
-	    | SUBPS
-	    | SUBSD
-	    | SUBSS
-	    | SWAPGS
-	    | SYSCALL
-	    | SYSENTER
-	    | SYSEXIT
-	    | TEST
-	    | UCOMISD
-	    | UCOMISS
-	    | UD2
-	    | UNPCKHPD
-	    | UNPCKHPS
-	    | UNPCKLPD
-	    | UNPCKLPS
-	    | VERR
-	    | VERW
-	    | VMCALL
-	    | VMCLEAR
-	    | VMLAUNCH
-	    | VMPTRLD
-	    | VMPTRST
-	    | VMREAD
-	    | VMRESUME
-	    | VMWRITE
-	    | VMXOFF
-	    | VMXON
-	    | WAIT
-	    | WBINVD
-	    | WRMSR
-	    | XADD
-	    | XCHG
-	    | XLAT
-	    | XOR
-	    | XORPD
-	    | XORPS
+            | AAA
+            | AAD
+            | AAM
+            | AAS
+            | ADC
+            | ADD
+            | ADDPD
+            | ADDPS
+            | ADDSD
+            | ADDSS
+            | ADDSUBPD
+            | ADDUBPS
+            | AND
+            | ANDNPD
+            | ANDNPS
+            | ANDPD
+            | ANDPS
+            | ARPL
+            | BOUND
+            | BSF
+            | BSR
+            | BT
+            | BTC
+            | BTR
+            | BTS
+            | CALL
+            | CALLF
+            | CBW
+            | CDQ
+            | CDQE
+            | CLC
+            | CLD
+            | CLFLUSH
+            | CLI
+            | CLTS
+            | CMC
+            | CMOVA
+            | CMOVB
+            | CMOVBE
+            | CMOVE
+            | CMOVG
+            | CMOVGE
+            | CMOVL
+            | CMOVLE
+            | CMOVNB
+            | CMOVNE
+            | CMOVNO
+            | CMOVNP
+            | CMOVNS
+            | CMOVO
+            | CMOVP
+            | CMOVS
+            | CMP
+            | CMPS
+            | CMPXCHG
+            | CMPXCHG16B
+            | CMPXCHG8B
+            | COMISD
+            | COMISS
+            | CPUID
+            | CWD
+            | CWDE
+            | DAA
+            | DAS
+            | DEC
+            | DIV
+            | DIVPD
+            | DIVPS
+            | DIVSD
+            | DIVSS
+            | EMMS
+            | ENTER
+            | FABS
+            | FADD
+            | FADDP
+            | FBLD
+            | FBSTP
+            | FCHS
+            | FCLEX
+            | FCMOVB
+            | FCMOVBE
+            | FCMOVE
+            | FCMOVNB
+            | FCMOVNBE
+            | FCMOVNE
+            | FCMOVNU
+            | FCMOVU
+            | FCOM
+            | FCOMI
+            | FCOMIP
+            | FCOMP
+            | FCOMPP
+            | FDIV
+            | FDIVP
+            | FDIVR
+            | FDIVRP
+            | FFREE
+            | FIADD
+            | FICOM
+            | FICOMP
+            | FIDIV
+            | FIDIVR
+            | FILD
+            | FIMUL
+            | FINIT
+            | FIST
+            | FISTP
+            | FISTPP
+            | FISTTP
+            | FISUB
+            | FISUBR
+            | FLD
+            | FLD1
+            | FLDCW
+            | FLDENV
+            | FLDL2E
+            | FLDL2T
+            | FLDLG2
+            | FLDLN2
+            | FLDPI
+            | FLDZ
+            | FMUL
+            | FMULP
+            | FNOP
+            | FRSTOR
+            | FSAVE
+            | FST
+            | FSTCW
+            | FSTENV
+            | FSTP
+            | FSTSW
+            | FSUB
+            | FSUBP
+            | FSUBR
+            | FSUBRP
+            | FTST
+            | FUCOM
+            | FUCOMI
+            | FUCOMIP
+            | FUCOMP
+            | FUCOMPP
+            | FXAM
+            | FXCH
+            | FXRSTOR
+            | FXSAVE
+            | HADDPD
+            | HADDPS
+            | HLT
+            | HSUBPD
+            | HSUBPS
+            | IDIV
+            | IMUL
+            | BSWAP
+            | IN
+            | INC
+            | INS
+            | INT
+            | INT3
+            | INTO
+            | INVD
+            | INVLPG
+            | IRET
+            | JA
+            | JB
+            | JBE
+            | JCXZ
+            | JE
+            | JG
+            | JGE
+            | JL
+            | JLE
+            | JMP
+            | JMPF
+            | JMPN
+            | JNB
+            | JNE
+            | JNO
+            | JNP
+            | JNS
+            | JO
+            | JP
+            | JS
+            | LAHF
+            | LAR
+            | LDDQU
+            | LDMXCSR
+            | LDS
+            | LEA
+            | LEAVE
+            | LES
+            | LFENCE
+            | LFS
+            | LGDT
+            | LGS
+            | LIDT
+            | LLDT
+            | LMSW
+            | LODS
+            | LOOP
+            | LOOPE
+            | LOOPNE
+            | LSL
+            | LSS
+            | LTR
+            | MASKMOVQ
+            | MAXPD
+            | MAXPS
+            | MAXSD
+            | MAXSS
+            | MFENCE
+            | MINPD
+            | MINPS
+            | MINSD
+            | MINSS
+            | MONITOR
+            | MOV
+            | MOVAPD
+            | MOVAPS
+            | MOVDDUP
+            | MOVHPD
+            | MOVHPS
+            | MOVLHPS
+            | MOVLPD
+            | MOVLPS
+            | MOVLSDUP
+            | MOVMSKPD
+            | MOVMSKPS
+            | MOVNTDQ
+            | MOVNTPD
+            | MOVNTPS
+            | MOVNTQ
+            | MOVQ
+            | MOVS
+            | MOVSD
+            | MOVSLDUP
+            | MOVSS
+            | MOVSXB
+            | MOVSXD
+            | MOVSXW
+            | MOVUPD
+            | MOVUPS
+            | MOVZXB
+            | MOVZXW
+            | MUL
+            | MULPD
+            | MULPS
+            | MULSD
+            | MULSS
+            | MWAIT
+            | NEG
+            | NOP
+            | NOT
+            | OR
+            | ORPD
+            | ORPS
+            | OUT
+            | OUTS
+            | PADDB
+            | PADDD
+            | PADDQ
+            | PADDSB
+            | PADDSW
+            | PADDUSB
+            | PADDUSW
+            | PADDW
+            | PAND
+            | PANDN
+            | PAUSE
+            | PAVGB
+            | PAVGW
+            | PMADDWD
+            | PMAXSW
+            | PMAXUB
+            | PMINSW
+            | PMINUB
+            | PMOVMSKB
+            | PMULHUW
+            | PMULHW
+            | PMULLW
+            | PMULUDQ
+            | POP
+            | POPA
+            | POPAD
+            | POPF
+            | POPFD
+            | POPFQ
+            | POR
+            | PREFETCHNTA
+            | PREFETCHT0
+            | PREFETCHT1
+            | PREFETCHT2
+            | PSADBW
+            | PSLLD
+            | PSLLDQ
+            | PSLLQ
+            | PSLLW
+            | PSRAD
+            | PSRAW
+            | PSRLD
+            | PSRLDQ
+            | PSRLQ
+            | PSRLW
+            | PSUBB
+            | PSUBD
+            | PSUBQ
+            | PSUBSB
+            | PSUBSQ
+            | PSUBUSB
+            | PSUBUSW
+            | PSUBW
+            | PUSH
+            | PUSHA
+            | PUSHAD
+            | PUSHF
+            | PUSHFD
+            | PUSHFQ
+            | PXOR
+            | RCL
+            | RCPPS
+            | RCPSS
+            | RCR
+            | RDMSR
+            | RDPMC
+            | RDTSC
+            | RET
+            | RETF
+            | ROL
+            | ROR
+            | RSM
+            | RSQRTPS
+            | RSQRTSS
+            | SAHF
+            | SAR
+            | SBB
+            | SCAS
+            | SETA
+            | SETB
+            | SETBE
+            | SETE
+            | SETG
+            | SETGE
+            | SETL
+            | SETLE
+            | SETNB
+            | SETNE
+            | SETNO
+            | SETNP
+            | SETNS
+            | SETO
+            | SETP
+            | SETS
+            | SFENCE
+            | SGDT
+            | SHL
+            | SHLD
+            | SHR
+            | SHRD
+            | SIDT
+            | SLDT
+            | SMSW
+            | SQRTPD
+            | SQRTPS
+            | SQRTSD
+            | SQRTSS
+            | STC
+            | STD
+            | STI
+            | STMXCSR
+            | STOS
+            | STR
+            | SUB
+            | SUBPD
+            | SUBPS
+            | SUBSD
+            | SUBSS
+            | SWAPGS
+            | SYSCALL
+            | SYSENTER
+            | SYSEXIT
+            | TEST
+            | UCOMISD
+            | UCOMISS
+            | UD2
+            | UNPCKHPD
+            | UNPCKHPS
+            | UNPCKLPD
+            | UNPCKLPS
+            | VERR
+            | VERW
+            | VMCALL
+            | VMCLEAR
+            | VMLAUNCH
+            | VMPTRLD
+            | VMPTRST
+            | VMREAD
+            | VMRESUME
+            | VMWRITE
+            | VMXOFF
+            | VMXON
+            | WAIT
+            | WBINVD
+            | WRMSR
+            | XADD
+            | XCHG
+            | XLAT
+            | XOR
+            | XORPD
+            | XORPS
   deriving (Show, Eq)
 
 -- Display an opcode in lower case.
@@ -522,25 +522,25 @@ showOp = (map toLower) . show
 --
 -- - Base-Index with scale
 --
--- - Base-Index with scale and displacement 
+-- - Base-Index with scale and displacement
 --
 -- Displacements can be encoded as 8 or 32-bit immediates in the
 -- instruction stream, but are encoded as Int in instructions for
 -- simplicity.
 --
-data Operand = OpImm Word32		-- ^ Immediate value
+data Operand = OpImm Word32             -- ^ Immediate value
               | OpAddr Word32 InstrOperandSize -- ^ Absolute address
-              | OpReg String Int	-- ^ Register
-              | OpFPReg Int		-- ^ Floating-point register
+              | OpReg String Int        -- ^ Register
+              | OpFPReg Int             -- ^ Floating-point register
               | OpInd String InstrOperandSize -- ^Register-indirect
               | OpIndDisp String Int InstrOperandSize
-	        -- ^ Register-indirect with displacement
+                -- ^ Register-indirect with displacement
               | OpBaseIndex String String Int InstrOperandSize
-        				-- ^ Base plus scaled index
+                                        -- ^ Base plus scaled index
               | OpIndexDisp String Int Int InstrOperandSize
-       		 -- ^ Scaled index with displacement
+                 -- ^ Scaled index with displacement
               | OpBaseIndexDisp String String Int Int InstrOperandSize
-       		 -- ^ Base plus scaled index with displacement
+                 -- ^ Base plus scaled index with displacement
   deriving (Eq)
 
 -- Show an operand in AT&T style.
@@ -553,9 +553,9 @@ showAttOps (OpFPReg i) = "%st(" ++ show i ++ ")"
 showAttOps (OpInd s _) = "(%" ++ s ++ ")"
 showAttOps (OpIndDisp s disp _) = show disp ++ "(%" ++ s ++ ")"
 showAttOps (OpBaseIndex b i s _) = "(%" ++ b ++ ",%" ++ i ++ "," ++ show s ++ ")"
-showAttOps (OpIndexDisp i s disp _) = show disp ++ "(%" ++ i ++ "," ++ 
+showAttOps (OpIndexDisp i s disp _) = show disp ++ "(%" ++ i ++ "," ++
   show s ++ ")"
-showAttOps (OpBaseIndexDisp b i s disp _) = show disp ++ "(%" ++ b ++ ",%" ++ 
+showAttOps (OpBaseIndexDisp b i s disp _) = show disp ++ "(%" ++ b ++ ",%" ++
   i ++ "," ++ show s ++ ")"
 
 -- Show an operand in Intel style.
@@ -566,17 +566,17 @@ showIntelOps opsize (OpReg s num) = s
 showIntelOps opsize (OpFPReg 0) = "st"
 showIntelOps opsize (OpFPReg i) = "st(" ++ show i ++ ")"
 showIntelOps opsize (OpInd s sz) = opInd sz ++ "[" ++ s ++ "]"
-showIntelOps opsize (OpIndDisp s disp sz) = 
-    opInd sz ++ "[" ++ s ++ 
+showIntelOps opsize (OpIndDisp s disp sz) =
+    opInd sz ++ "[" ++ s ++
        (if disp < 0 then "" else "+") ++ show disp ++ "]"
-showIntelOps opsize (OpBaseIndex b i s sz) = 
+showIntelOps opsize (OpBaseIndex b i s sz) =
     opInd sz ++ "[" ++ b ++ "+" ++ i ++ "*" ++ show s ++ "]"
-showIntelOps opsize (OpIndexDisp i s disp sz) = 
-    opInd sz ++ "[" ++ i ++ "*" ++ show s ++ 
+showIntelOps opsize (OpIndexDisp i s disp sz) =
+    opInd sz ++ "[" ++ i ++ "*" ++ show s ++
        (if disp < 0 then "" else "+") ++ show disp ++ "]"
-showIntelOps opsize (OpBaseIndexDisp b i s disp sz) = 
-    opInd sz ++ "[" ++ b ++ "+" ++ i ++ "*" ++ show s ++ 
-       (if disp < 0 then "" else "+") ++ 
+showIntelOps opsize (OpBaseIndexDisp b i s disp sz) =
+    opInd sz ++ "[" ++ b ++ "+" ++ i ++ "*" ++ show s ++
+       (if disp < 0 then "" else "+") ++
       show disp ++ "]"
 opInd OPNONE = ""
 opInd OP8 = "byte ptr "
@@ -597,14 +597,14 @@ data OperandSize = BIT16 | BIT32
 -- is encoded in instructions using the following enumeration type..
 
 data InstrOperandSize = OPNONE -- ^ No operand size specified
-       	        | OP8 	       -- ^ 8-bit integer operand
-       	        | OP16 	       -- ^ 16-bit integer operand
-       	        | OP32	       -- ^ 32-bit integer operand
-       	        | OP64	       -- ^ 64-bit integer operand
-       	        | OP128	       -- ^ 128-bit integer operand
-       	        | OPF32	       -- ^ 32-bit floating point operand
-       	        | OPF64	       -- ^ 64-bit floating point operand
-       	        | OPF80	       -- ^ 80-bit floating point operand
+                | OP8          -- ^ 8-bit integer operand
+                | OP16         -- ^ 16-bit integer operand
+                | OP32         -- ^ 32-bit integer operand
+                | OP64         -- ^ 64-bit integer operand
+                | OP128        -- ^ 128-bit integer operand
+                | OPF32        -- ^ 32-bit floating point operand
+                | OPF64        -- ^ 64-bit floating point operand
+                | OPF80        -- ^ 80-bit floating point operand
   deriving (Show, Eq)
 
 
@@ -614,15 +614,15 @@ data InstrOperandSize = OPNONE -- ^ No operand size specified
 -- opcode bytes from which the instruction was decoded and the address of
 -- the instruction.
 
-data Instruction = 
+data Instruction =
     BadInstruction Word8 String Int [Word8]   -- ^ Invalid instruction
   | PseudoInstruction Int String                  -- ^ Pseudo instruction, e.g. label
-  | Instruction { opcode :: Opcode, 	      -- ^ Opcode of the instruction
-       		  opsize :: InstrOperandSize, -- ^ Operand size, if any
-       		  operands :: [Operand],      -- ^ Instruction operands
+  | Instruction { opcode :: Opcode,           -- ^ Opcode of the instruction
+                  opsize :: InstrOperandSize, -- ^ Operand size, if any
+                  operands :: [Operand],      -- ^ Instruction operands
                   address :: Int,             -- ^ Start address of instruction
-       		  bytes ::[Word8]	      -- ^ Instruction bytes
-                 }			      -- ^ Valid instruction
+                  bytes ::[Word8]             -- ^ Instruction bytes
+                 }                            -- ^ Valid instruction
   deriving (Eq)
 
 instance Show Instruction where
@@ -673,8 +673,8 @@ hex8 i =
 -- - Hexadecimal numbers are prefixes with @0x@
 --
 -- - Opcodes are suffixed with operand size, when ambiguous otherwise.
-data ShowStyle = IntelStyle		-- ^ Show in Intel style
-                | AttStyle		-- ^ Show in AT&T style
+data ShowStyle = IntelStyle             -- ^ Show in Intel style
+                | AttStyle              -- ^ Show in AT&T style
 
 -- | Show an instruction in Intel style.
 
@@ -684,10 +684,10 @@ showIntel (BadInstruction b desc pos bytes) =
     "(" ++ desc ++ ", byte=" ++ show b ++ ")"
 showIntel (PseudoInstruction pos s) =
     hex32 pos ++ "                          " ++ s
-showIntel (Instruction op opsize [] pos bytes) = 
+showIntel (Instruction op opsize [] pos bytes) =
     showPosBytes pos bytes ++
        showOp op
-showIntel (Instruction op opsize ops pos bytes) = 
+showIntel (Instruction op opsize ops pos bytes) =
     showPosBytes pos bytes ++
         enlarge (showOp op) 6 ++ " " ++
        concat (intersperse "," (map (showIntelOps opsize) ops))
@@ -695,21 +695,21 @@ showIntel (Instruction op opsize ops pos bytes) =
 -- | Show an instruction in AT&T style.
 
 showAtt :: Instruction -> [Char]
-showAtt (BadInstruction b desc pos bytes) = 
+showAtt (BadInstruction b desc pos bytes) =
     showPosBytes pos bytes ++
        "(" ++ desc ++ ", byte=" ++ show b ++ ")"
 showAtt (PseudoInstruction pos s) =
     hex32 pos ++ "                          " ++ s
-showAtt (Instruction op opsize [] pos bytes) = 
+showAtt (Instruction op opsize [] pos bytes) =
     showPosBytes pos bytes ++
        showOp op ++ showInstrSuffix [] opsize
-showAtt (Instruction op opsize ops pos bytes) = 
+showAtt (Instruction op opsize ops pos bytes) =
     showPosBytes pos bytes ++
        enlarge (showOp op ++ showInstrSuffix ops opsize) 6 ++ " " ++
        concat (intersperse "," (map showAttOps (reverse ops)))
 
 showPosBytes pos bytes =
-    hex32 pos ++ "  " ++ 
+    hex32 pos ++ "  " ++
       enlarge (concat (intersperse " " (map hex8 bytes))) 30
 
 enlarge s i = s ++ take (i - length s) (repeat ' ')
@@ -771,11 +771,11 @@ showIntelImm i =
 
 -- Show an address in hexadecimal.
 
-showAddr i =  
+showAddr i =
   let w :: Word32
       w = fromIntegral i
   in "0x" ++ showHex w ""
-showIntelAddr i = 
+showIntelAddr i =
   let w :: Word32
       w = fromIntegral i
       h = showHex w "H"
@@ -787,20 +787,20 @@ showIntelAddr i =
 -- disassembled.
 
 disassembleBlock :: Ptr Word8 -> Int -> IO (Either ParseError [Instruction])
-disassembleBlock ptr len = 
-    disassembleBlockWithConfig defaultConfig{confStartAddr = fromIntegral (minusPtr ptr nullPtr)} 
+disassembleBlock ptr len =
+    disassembleBlockWithConfig defaultConfig{confStartAddr = fromIntegral (minusPtr ptr nullPtr)}
                                ptr len
 
 disassembleBlockWithConfig :: Config -> Ptr Word8 -> Int -> IO (Either ParseError [Instruction])
 disassembleBlockWithConfig config ptr len = do
   l <- toList ptr len 0 []
   parseInstructions (configToState config) (reverse l)
-  where 
+  where
   toList :: (Ptr Word8) -> Int -> Int -> [Word8] -> IO [Word8]
   toList ptr len idx acc | idx < len =
-       	   do p <- peekByteOff ptr idx
-       	      toList ptr len (idx + 1) (p : acc)
---       	      return (p : r)
+           do p <- peekByteOff ptr idx
+              toList ptr len (idx + 1) (p : acc)
+--                    return (p : r)
   toList ptr len idx acc | idx >= len = return acc
 
 -- | Disassemble the contents of the given array.
@@ -836,8 +836,8 @@ instrToString insts style =
   map showInstr insts
  where
  showInstr = case style of
-       	  IntelStyle -> showIntel
-       	  AttStyle -> showAtt
+          IntelStyle -> showIntel
+          AttStyle -> showAtt
 
 -- | Test function for disassembling the contents of a binary file and
 -- displaying it in the provided style ("IntelStyle" or "AttStyle").
@@ -851,17 +851,17 @@ testFile fname style = do
     Right i' -> mapM_ (putStrLn . showInstr) i'
  where
  showInstr = case style of
-       	  IntelStyle -> showIntel
-       	  AttStyle -> showAtt
+          IntelStyle -> showIntel
+          AttStyle -> showAtt
 
 -- This is the state maintained by the disassembler.
 
 data PState = PState { defaultBitMode :: OperandSize,
-       	               operandBitMode :: OperandSize,
-       	               addressBitMode :: OperandSize,
-       	               in64BitMode :: Bool,
+                       operandBitMode :: OperandSize,
+                       addressBitMode :: OperandSize,
+                       in64BitMode :: Bool,
                        prefixes :: [Word8],
-       	               startAddr :: Word32
+                       startAddr :: Word32
                       }
 
 data Config = Config {confDefaultBitMode :: OperandSize,
@@ -871,10 +871,10 @@ data Config = Config {confDefaultBitMode :: OperandSize,
                       confStartAddr          :: Word32}
 
 defaultConfig = Config{ confDefaultBitMode = BIT32,
-       	                confOperandBitMode = BIT32, 
-       	                confAddressBitMode = BIT32, 
-       	                confIn64BitMode = False,
-       	                confStartAddr = 0}
+                        confOperandBitMode = BIT32,
+                        confAddressBitMode = BIT32,
+                        confIn64BitMode = False,
+                        confStartAddr = 0}
 
 configToState (Config defBitMode opMode addrMode in64 confStartAddr) =
     defaultState{defaultBitMode = defBitMode,
@@ -882,16 +882,16 @@ configToState (Config defBitMode opMode addrMode in64 confStartAddr) =
                  addressBitMode = addrMode,
                  in64BitMode = in64,
                  startAddr = confStartAddr}
-           
+
 -- Default state to be used if no other is given to the disassembly
 -- routines.
 
 defaultState = PState { defaultBitMode = BIT32,
-       	          operandBitMode = BIT32, 
-       	          addressBitMode = BIT32, 
-       	          in64BitMode = False,
-       	          prefixes = [],
-       	          startAddr = 0}
+                  operandBitMode = BIT32,
+                  addressBitMode = BIT32,
+                  in64BitMode = False,
+                  prefixes = [],
+                  startAddr = 0}
 
 type Word8Parser a = GenParser Word8 PState a
 
@@ -918,23 +918,23 @@ instruction = do
     b <- anyWord8
     case lookup b oneByteOpCodeMap of
       Just p -> do i <- p b
-       		   endPos' <- getPosition
-       		   let endPos = sourceColumn endPos' - 1
-		   case i of
-       		     Instr oc opsize ops -> do
-       	               return $ Instruction oc opsize ops
-       		            (fromIntegral (startAddr st) + startPos)
-       		            (take (endPos - startPos) input)
-       	             Bad b desc ->
-       	               return $ BadInstruction b desc 
-       		            (fromIntegral (startAddr st) + startPos)
-       		            (take (endPos - startPos) input)
+                   endPos' <- getPosition
+                   let endPos = sourceColumn endPos' - 1
+                   case i of
+                     Instr oc opsize ops -> do
+                       return $ Instruction oc opsize ops
+                            (fromIntegral (startAddr st) + startPos)
+                            (take (endPos - startPos) input)
+                     Bad b desc ->
+                       return $ BadInstruction b desc
+                            (fromIntegral (startAddr st) + startPos)
+                            (take (endPos - startPos) input)
       Nothing -> do Bad b desc <- parseInvalidOpcode b
-		    endPos' <- getPosition
-       		    let endPos = sourceColumn endPos' - 1
-       		    return $ BadInstruction b desc 
-       	                (fromIntegral (startAddr st) + startPos)
-       		        (take (endPos - startPos) input)
+                    endPos' <- getPosition
+                    let endPos = sourceColumn endPos' - 1
+                    return $ BadInstruction b desc
+                        (fromIntegral (startAddr st) + startPos)
+                        (take (endPos - startPos) input)
 
 toggleBitMode BIT16 = BIT32
 toggleBitMode BIT32 = BIT16
@@ -998,7 +998,7 @@ parsePrefix = do
        setState st{addressBitMode = toggleBitMode (addressBitMode st)}
        addPrefix 0x66
   <|>  do st <- getState
-          if in64BitMode st 
+          if in64BitMode st
             then    (word8 0x40 >>= addPrefix)
                      <|>
                      (word8 0x41 >>= addPrefix)
@@ -1128,13 +1128,13 @@ anyWordV = do
                return w
         else case operandBitMode st of
               BIT16 -> do w <- anyWord16
-       	                  let w' :: Word64
-       	                      w' = fromIntegral w
-       	                  return w'
+                          let w' :: Word64
+                              w' = fromIntegral w
+                          return w'
               BIT32 -> do w <- anyWord32
-       	                  let w' :: Word64
-       	                      w' = fromIntegral w
-       	                  return w'
+                          let w' :: Word64
+                              w' = fromIntegral w
+                          return w'
 
 -- Accept a 16-bit word for 16-bit operand-size or a 32-bit word for
 -- 32-bit operand-size or 64-bit mode.
@@ -1143,11 +1143,11 @@ anyWordZ :: Word8Parser Word32
 anyWordZ = do
     st <- getState
     case operandBitMode st of
-      BIT16 -> do 
+      BIT16 -> do
         w <- anyWord16
-       	let w' :: Word32
-       	    w' = fromIntegral w
-       	return w'
+        let w' :: Word32
+            w' = fromIntegral w
+        return w'
       BIT32 -> anyWord32
 
 -- Accept a 16-bit integer for 16-bit operand-size or a 32-bit word for
@@ -1157,11 +1157,11 @@ anyIntZ :: Word8Parser Int32
 anyIntZ = do
     st <- getState
     case operandBitMode st of
-      BIT16 -> do 
+      BIT16 -> do
         w <- anyInt16
-       	let w' :: Int32
-       	    w' = fromIntegral w
-       	return w'
+        let w' :: Int32
+            w' = fromIntegral w
+        return w'
       BIT32 -> anyInt32
 
 -- Accept a 32-bit far address for 16-bit operand-size or a 48-bit far
@@ -1172,15 +1172,15 @@ anyWordP = do
     st <- getState
     case operandBitMode st of
       BIT16 -> do w <- anyWord32
-       	          let w' :: Word64
-       	              w' = fromIntegral w
-		  return w'
+                  let w' :: Word64
+                      w' = fromIntegral w
+                  return w'
       _ -> do w1 <- anyWord32
-       	      w2 <- anyWord16
+              w2 <- anyWord16
               let w1', w2' :: Word64
-       	          w1' = fromIntegral w1
+                  w1' = fromIntegral w1
                   w2' = fromIntegral w2
-       	      return (w1' .|. (w2' `shiftL` 32))
+              return (w1' .|. (w2' `shiftL` 32))
 
 oneByteOpCodeMap =
     [(0x00, parseALU ADD),
@@ -1521,12 +1521,12 @@ scaleToFactor 3 = 8
 
 
 parseAddress32 :: InstrOperandSize ->
-		  Word8Parser (Operand, Operand, Word8, Word8, Word8)
+                  Word8Parser (Operand, Operand, Word8, Word8, Word8)
 parseAddress32 s = do
   b <- anyWord8
   parseAddress32' s b
 
-parseAddress32' :: InstrOperandSize -> 
+parseAddress32' :: InstrOperandSize ->
     Word8 ->
     Word8Parser (Operand, Operand, Word8, Word8, Word8)
 parseAddress32' opsize modrm = do
@@ -1534,19 +1534,19 @@ parseAddress32' opsize modrm = do
   st <- getState
   let opregnames = if in64BitMode st && hasREX rex_W st
                      then regnames64
-       	      else case operandBitMode st of 
-			BIT16 -> regnames16
-       			BIT32 -> regnames32
+              else case operandBitMode st of
+                        BIT16 -> regnames16
+                        BIT32 -> regnames32
   let addregnames = if in64BitMode st && hasREX rex_R st
                       then regnames64
-       	       else case addressBitMode st of 
-			BIT16 -> regnames16
-       			BIT32 -> regnames32
+               else case addressBitMode st of
+                        BIT16 -> regnames16
+                        BIT32 -> regnames32
   case mod of
     0 -> case rm of
-            4 -> do 
-	     (s, i, b) <- parseSIB
-       	     case (i, b) of
+            4 -> do
+             (s, i, b) <- parseSIB
+             case (i, b) of
                (4, 5) -> do
                            disp <- anyWord32
                            return (OpAddr (fromIntegral disp) opsize,
@@ -1562,90 +1562,90 @@ parseAddress32' opsize modrm = do
                                    OpReg (opregnames !! fromIntegral reg_opc)
                                          (fromIntegral reg_opc),
                                    mod, reg_opc, rm)
-       	       (4, _) -> return (OpInd (addregnames !! fromIntegral b) opsize,
-       	                   OpReg (opregnames !! fromIntegral reg_opc)
-			     (fromIntegral reg_opc),
-       		           mod, reg_opc, rm)
-       	       (_ ,_) -> return (OpBaseIndex 
-       		              (addregnames !! fromIntegral b)
-       	                      (addregnames !! fromIntegral i)
-       		              (scaleToFactor (fromIntegral s))
-			      opsize,
-       		            OpReg (opregnames !! fromIntegral reg_opc)
-			      (fromIntegral reg_opc),
-       	                    mod, reg_opc, rm)
-            5 -> do 
-	     disp <- anyWord32
-       	     return (OpAddr disp opsize, 
-       	             OpReg (opregnames !! fromIntegral reg_opc)
-		       (fromIntegral reg_opc),
-       	             mod, reg_opc, rm)
-            _ -> return (OpInd (addregnames !! fromIntegral rm) opsize, 
-       	          OpReg (opregnames !! fromIntegral reg_opc)
-			(fromIntegral reg_opc),
-       	          mod, reg_opc, rm)
+               (4, _) -> return (OpInd (addregnames !! fromIntegral b) opsize,
+                           OpReg (opregnames !! fromIntegral reg_opc)
+                             (fromIntegral reg_opc),
+                           mod, reg_opc, rm)
+               (_ ,_) -> return (OpBaseIndex
+                              (addregnames !! fromIntegral b)
+                              (addregnames !! fromIntegral i)
+                              (scaleToFactor (fromIntegral s))
+                              opsize,
+                            OpReg (opregnames !! fromIntegral reg_opc)
+                              (fromIntegral reg_opc),
+                            mod, reg_opc, rm)
+            5 -> do
+             disp <- anyWord32
+             return (OpAddr disp opsize,
+                     OpReg (opregnames !! fromIntegral reg_opc)
+                       (fromIntegral reg_opc),
+                     mod, reg_opc, rm)
+            _ -> return (OpInd (addregnames !! fromIntegral rm) opsize,
+                  OpReg (opregnames !! fromIntegral reg_opc)
+                        (fromIntegral reg_opc),
+                  mod, reg_opc, rm)
     1 -> case rm of
-            4 -> do 
-	     (s, i, b) <- parseSIB
-	     disp <- anyInt8
-       	     case i of
-       	       4 -> return (OpIndDisp
-       		            (addregnames !! fromIntegral b) 
-       		            (fromIntegral disp) opsize,
-       	                    OpReg (opregnames !! fromIntegral reg_opc)
-			      (fromIntegral reg_opc),
-       		            mod, reg_opc, rm)
-       	       _ -> return (OpBaseIndexDisp
-       		            (addregnames !! fromIntegral b)
-       		            (addregnames !! fromIntegral i)
-       		            (scaleToFactor (fromIntegral s))
-       		            (fromIntegral disp)
-			    opsize,
-       		            OpReg (opregnames !! fromIntegral reg_opc)
-			      (fromIntegral reg_opc),
-       	                    mod, reg_opc, rm)
+            4 -> do
+             (s, i, b) <- parseSIB
+             disp <- anyInt8
+             case i of
+               4 -> return (OpIndDisp
+                            (addregnames !! fromIntegral b)
+                            (fromIntegral disp) opsize,
+                            OpReg (opregnames !! fromIntegral reg_opc)
+                              (fromIntegral reg_opc),
+                            mod, reg_opc, rm)
+               _ -> return (OpBaseIndexDisp
+                            (addregnames !! fromIntegral b)
+                            (addregnames !! fromIntegral i)
+                            (scaleToFactor (fromIntegral s))
+                            (fromIntegral disp)
+                            opsize,
+                            OpReg (opregnames !! fromIntegral reg_opc)
+                              (fromIntegral reg_opc),
+                            mod, reg_opc, rm)
             _ -> do disp <- anyInt8
                     return (OpIndDisp
-       			    (addregnames !! fromIntegral rm) 
-       			    (fromIntegral disp)
-			    opsize,
-       			    OpReg (opregnames !! fromIntegral reg_opc)
-			      (fromIntegral reg_opc),
+                            (addregnames !! fromIntegral rm)
+                            (fromIntegral disp)
+                            opsize,
+                            OpReg (opregnames !! fromIntegral reg_opc)
+                              (fromIntegral reg_opc),
                             mod, reg_opc, rm)
     2 -> case rm of
-            4 -> do 
-	     (s, i, b) <- parseSIB
-	     disp <- anyInt32
+            4 -> do
+             (s, i, b) <- parseSIB
+             disp <- anyInt32
              case i of
-       	       4 -> return (OpIndDisp
-       		            (addregnames !! fromIntegral b)
-       		            (fromIntegral disp)
-			    opsize,
-       		            OpReg (opregnames !! fromIntegral reg_opc)
-			      (fromIntegral reg_opc),
-       		            mod, reg_opc, rm)
-       	       _ -> return (OpBaseIndexDisp
-       		            (addregnames !! fromIntegral b)
-       		            (addregnames !! fromIntegral i)
-       		            (scaleToFactor (fromIntegral s))
-       		            (fromIntegral disp)
-			    opsize,
-       		            OpReg (opregnames !! fromIntegral reg_opc)
-			      (fromIntegral reg_opc),
-       	                    mod, reg_opc, rm)
-            _ -> do 
-	     disp <- anyInt32
-       	     return (OpIndDisp
-       	             (addregnames !! fromIntegral rm)
-       	             (fromIntegral disp)
-		     opsize,
-       	             OpReg (opregnames !! fromIntegral reg_opc)
-		       (fromIntegral reg_opc),
-       	             mod, reg_opc, rm)
+               4 -> return (OpIndDisp
+                            (addregnames !! fromIntegral b)
+                            (fromIntegral disp)
+                            opsize,
+                            OpReg (opregnames !! fromIntegral reg_opc)
+                              (fromIntegral reg_opc),
+                            mod, reg_opc, rm)
+               _ -> return (OpBaseIndexDisp
+                            (addregnames !! fromIntegral b)
+                            (addregnames !! fromIntegral i)
+                            (scaleToFactor (fromIntegral s))
+                            (fromIntegral disp)
+                            opsize,
+                            OpReg (opregnames !! fromIntegral reg_opc)
+                              (fromIntegral reg_opc),
+                            mod, reg_opc, rm)
+            _ -> do
+             disp <- anyInt32
+             return (OpIndDisp
+                     (addregnames !! fromIntegral rm)
+                     (fromIntegral disp)
+                     opsize,
+                     OpReg (opregnames !! fromIntegral reg_opc)
+                       (fromIntegral reg_opc),
+                     mod, reg_opc, rm)
     3 -> return (OpReg (opregnames !! fromIntegral rm)
-		   (fromIntegral rm),
+                   (fromIntegral rm),
                   OpReg (opregnames !! fromIntegral reg_opc)
-		    (fromIntegral reg_opc),
+                    (fromIntegral reg_opc),
                  mod, reg_opc, rm)
 
 parseALU :: Opcode -> Word8 -> Word8Parser Instr
@@ -1654,13 +1654,13 @@ parseALU op b = do
     case b .&. 0x07 of
       0 -> do (op1, op2, mod, reg, rm) <- parseAddress32 opsize
               return $ Instr op OP8 [op1,
-       	           (OpReg (regnames8 !! fromIntegral reg)) (fromIntegral reg)]
+                   (OpReg (regnames8 !! fromIntegral reg)) (fromIntegral reg)]
       1 -> do (op1, op2, mod, reg, rm) <- parseAddress32 opsize
               return $ Instr op opsize [op1, op2]
       2 -> do (op1, op2, mod, reg, rm) <- parseAddress32 opsize
-              return $ Instr op OP8 
-       	           [(OpReg (regnames8 !! fromIntegral reg))
-		       (fromIntegral reg), op1]
+              return $ Instr op OP8
+                   [(OpReg (regnames8 !! fromIntegral reg))
+                       (fromIntegral reg), op1]
       3 -> do (op1, op2, mod, reg, rm) <- parseAddress32 opsize
               return $ Instr op opsize [op2, op1]
       4 -> do b <- anyWord8
@@ -1669,7 +1669,7 @@ parseALU op b = do
               rn <- registerName 0
               return $ Instr op opsize [(OpReg rn 0), (OpImm b)]
       _ -> return $ Bad b "no ALU opcode (internal error)"
-    
+
 
 parsePUSHSeg :: String -> Word8 -> Word8Parser Instr
 parsePUSHSeg r _ = do
@@ -1682,15 +1682,15 @@ parsePOPSeg r _ = do
 parseGenericGvEw name b = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OP16
   case op1 of
-    OpReg _ num -> return $ Instr name OP16 [op2, 
-					       OpReg (regnames16 !! num) num]
+    OpReg _ num -> return $ Instr name OP16 [op2,
+                                               OpReg (regnames16 !! num) num]
     _ -> return $ Instr name OP8 [op2, op1]
 
 parseGenericGvEb name b = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OP8
   case op1 of
-    OpReg _ num -> return $ Instr name OP8 [op2, 
-					       OpReg (regnames8 !! num) num]
+    OpReg _ num -> return $ Instr name OP8 [op2,
+                                               OpReg (regnames8 !! num) num]
     _ -> return $ Instr name OP8 [op2, op1]
 
 parseGenericGvEv name b = do
@@ -1706,14 +1706,14 @@ parseGenericEvGv name b = do
 parseGenericEbGb name b = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OP8
   return $ Instr name OP8 [op1, (OpReg (regnames8 !! fromIntegral reg)
-				(fromIntegral reg))]
+                                (fromIntegral reg))]
 
 parseGenericEv name b = do
   opsize <- instrOperandSize
   (op1, op2, mod, _, rm) <- parseAddress32 opsize
   return $ Instr name opsize [op1]
 
-twoByteOpCodeMap = 
+twoByteOpCodeMap =
     [(0x00, parseGrp6),
      (0x01, parseGrp7),
      (0x02, parseGenericGvEw LAR),
@@ -2007,16 +2007,16 @@ parseGenericJb name _ = do
     b <- anyInt8
     pos <- getPosition
     st <- getState
-    return $ Instr name OPNONE 
+    return $ Instr name OPNONE
         [OpAddr (fromIntegral ((fromIntegral b + sourceColumn pos - 1)) +
-       		(startAddr st)) OPNONE]
+                (startAddr st)) OPNONE]
 parseGenericJz name _ = do
     b <- anyIntZ
     pos <- getPosition
     st <- getState
-    return $ Instr name OPNONE 
+    return $ Instr name OPNONE
         [OpAddr (fromIntegral ((fromIntegral b + sourceColumn pos - 1)) +
-       	       (startAddr st)) OPNONE]
+               (startAddr st)) OPNONE]
 
 parseINC b = do
   opsize <- instrOperandSize
@@ -2030,25 +2030,25 @@ parseDEC b = do
   rn <- registerName (fromIntegral reg)
   return $ Instr DEC opsize [OpReg rn (fromIntegral reg)]
 
-parsePUSH b = 
+parsePUSH b =
     let reg = b .&. 0x0f in do
       st <- getState
       rn <- registerName (fromIntegral reg)
       opsize <- instrOperandSize
       if hasREX rex_R st
          then return $ Instr PUSH opsize [OpReg ("r" ++ show (reg + 8))
-					   (fromIntegral reg)]
+                                           (fromIntegral reg)]
           else return $ Instr PUSH opsize [OpReg rn
-					    (fromIntegral reg)]
+                                            (fromIntegral reg)]
 
-parsePOP b = 
+parsePOP b =
     let reg = (b .&. 0x0f) - 8 in do
       st <- getState
       rn <- registerName (fromIntegral reg)
       opsize <- instrOperandSize
       if hasREX rex_R st
          then return $ Instr POP opsize [OpReg ("r" ++ show (reg + 8))
-					 (fromIntegral reg)]
+                                         (fromIntegral reg)]
           else return $ Instr POP opsize [OpReg rn (fromIntegral reg)]
 
 parsePUSHA = do
@@ -2063,12 +2063,12 @@ parsePOPA = do
 parseBOUND b = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OPNONE
   return $ Instr BOUND OPNONE [op2, op1]
-  
+
 parseARPL b = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OP16
   let rn = regnames16 !! fromIntegral reg
   return $ Instr ARPL OPNONE [op1, (OpReg rn (fromIntegral reg))]
-     
+
 parseMOVSXD b = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OPNONE
   return $ Instr MOVSXD OPNONE [op2, op1]
@@ -2114,7 +2114,7 @@ parseJccShort b = do
 parseTEST 0x84 = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OP8
   return $ Instr TEST OP8 [op1, OpReg (regnames8 !! fromIntegral reg)
-			  (fromIntegral reg)]
+                          (fromIntegral reg)]
 parseTEST 0x85 = do
   opsize <- instrOperandSize
   (op1, op2, mod, reg, rm) <- parseAddress32 opsize
@@ -2123,7 +2123,7 @@ parseTEST 0x85 = do
 parseXCHG 0x86 = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OP8
   return $ Instr XCHG OP8 [op1, OpReg (regnames8 !! fromIntegral reg)
-			   (fromIntegral reg)]
+                           (fromIntegral reg)]
 parseXCHG 0x87 = do
   opsize <- instrOperandSize
   (op1, op2, mod, reg, rm) <- parseAddress32 opsize
@@ -2132,15 +2132,15 @@ parseXCHG 0x87 = do
 parseMOV 0x88  = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OP8
   return $ Instr MOV OP8 [op1, OpReg (regnames8 !! fromIntegral reg)
-			  (fromIntegral reg)]
+                          (fromIntegral reg)]
 parseMOV 0x89  = do
   opsize <- instrOperandSize
   (op1, op2, mod, reg, rm) <- parseAddress32 opsize
   return $ Instr MOV opsize [op1, op2]
 parseMOV 0x8a  = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OP8
-  return $ Instr MOV OP8 [OpReg (regnames8 !! fromIntegral reg) 
-			  (fromIntegral reg), op1]
+  return $ Instr MOV OP8 [OpReg (regnames8 !! fromIntegral reg)
+                          (fromIntegral reg), op1]
 parseMOV 0x8b  = do
   opsize <- instrOperandSize
   (op1, op2, mod, reg, rm) <- parseAddress32 opsize
@@ -2166,21 +2166,21 @@ parse0x90 b = do
      else do st <- getState
              if in64BitMode st
                 then parseXCHGReg b
-       		else return $ Instr NOP OPNONE []
+                else return $ Instr NOP OPNONE []
 
 -- FIXME: Register name handling not quite right
 
 parseXCHGReg :: Word8 -> Word8Parser Instr
-parseXCHGReg b = 
+parseXCHGReg b =
     let reg = b .&. 0x0f in do
       st <- getState
       if hasREX rex_R st
-         then return $ Instr XCHG OP64 [OpReg "rax" 0, 
-       					OpReg ("r" ++ show (reg + 8))
-					(fromIntegral reg)]
+         then return $ Instr XCHG OP64 [OpReg "rax" 0,
+                                        OpReg ("r" ++ show (reg + 8))
+                                        (fromIntegral reg)]
          else do rn <- registerName (fromIntegral reg)
-       		 return $ Instr XCHG OP64 [OpReg "rax" 0,
-					   OpReg rn (fromIntegral reg)]
+                 return $ Instr XCHG OP64 [OpReg "rax" 0,
+                                           OpReg rn (fromIntegral reg)]
 
 parseCBW_CWDE_CDQE b = do
   st <- getState
@@ -2206,7 +2206,7 @@ parseCALLF b = do
     w <- anyWord32
     s <- anyWord16
     return $ Instr CALLF OPNONE [OpImm (fromIntegral w),
-       		           OpImm (fromIntegral s)]
+                           OpImm (fromIntegral s)]
 
 -- FIXME: Check default/operand sizes.
 
@@ -2247,19 +2247,19 @@ parseMOVImm b@0xa1 = do
     (\ _ -> do w <- anyWord16
                return $ Instr MOV opsize [OpReg reg 0, OpImm (fromIntegral w)])
     (\ _ -> do w <- anyWord32
-       	       return $ Instr MOV opsize [OpReg reg 0, OpImm w]) b
+               return $ Instr MOV opsize [OpReg reg 0, OpImm w]) b
 parseMOVImm b@0xa2 = do
   chooseAddressSize
     (\ _ -> do w <- anyWord16
-       	       return $ Instr MOV OP8 [OpImm (fromIntegral w), OpReg "al" 0])
+               return $ Instr MOV OP8 [OpImm (fromIntegral w), OpReg "al" 0])
     (\ _ -> do w <- anyWord32
-       	       return $ Instr MOV OP8 [OpImm w, OpReg "al" 0]) b
+               return $ Instr MOV OP8 [OpImm w, OpReg "al" 0]) b
 parseMOVImm b@0xa3 = do
   opsize <- instrOperandSize
   reg <- registerName 0
   chooseAddressSize
     (\ _ -> do w <- anyWord16
-       	       return $ Instr MOV opsize [OpImm (fromIntegral w), OpReg reg 0])
+               return $ Instr MOV opsize [OpImm (fromIntegral w), OpReg reg 0])
     (\ _ -> do w <- anyWord32
                return $ Instr MOV opsize [OpImm w, OpReg reg 0]) b
 
@@ -2283,7 +2283,7 @@ parseTESTImm 0xa9 = do
   rn <- registerName 0
   opsize <- instrOperandSize
   return $ Instr TEST opsize [OpReg rn 0, OpImm imm]
-  
+
 
 parseSTOS 0xaa = return $ Instr STOS OP8 []
 parseSTOS b@0xab = do
@@ -2334,11 +2334,11 @@ parseMOVImmByteToByteReg b = do
   imm <- anyWord8
   if hasREX rex_R st
      then return $ Instr MOV OP8 [OpReg ("r" ++ show reg ++ "l")
-				   (fromIntegral reg),
-       				  OpImm (fromIntegral imm)]
+                                   (fromIntegral reg),
+                                  OpImm (fromIntegral imm)]
      else return $ Instr MOV OP8 [OpReg (regnames8 !! (fromIntegral reg))
-				    (fromIntegral reg), 
-       				  OpImm (fromIntegral imm)]
+                                    (fromIntegral reg),
+                                  OpImm (fromIntegral imm)]
 
 parseMOVImmToReg :: Word8 -> Word8Parser Instr
 parseMOVImmToReg b = do
@@ -2346,8 +2346,8 @@ parseMOVImmToReg b = do
   imm <- anyWordV
   opsize <- instrOperandSize
   rn <- registerName (fromIntegral reg)
-  return $ Instr MOV opsize [OpReg rn (fromIntegral reg), 
-			     OpImm (fromIntegral imm)]
+  return $ Instr MOV opsize [OpReg rn (fromIntegral reg),
+                             OpImm (fromIntegral imm)]
 
 parseRETN 0xc2 = do
     w <- anyWord16
@@ -2361,8 +2361,8 @@ parseLoadSegmentRegister opcode b = do
 parseENTER b = do
     w <- anyWord16
     b <- anyWord8
-    return $ Instr ENTER OPNONE [OpImm (fromIntegral w), 
-       		           OpImm (fromIntegral b)]
+    return $ Instr ENTER OPNONE [OpImm (fromIntegral w),
+                           OpImm (fromIntegral b)]
 
 -- Floating-point operations.  These can probably shortened by doing some
 -- arithmetic/logical tricks on the opcodes, but since the instruction
@@ -2377,37 +2377,37 @@ parseESC 0xd8 = do
      then do (op1, op2, mod, reg, rm) <- parseAddress32' OPF32 modrm
              return $ Instr (ops !! fromIntegral reg) OPF32 [op1]
      else if (modrm .&. 0x0f) < 0x8
-             then return $ Instr 
-       	     (ops !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
+             then return $ Instr
+             (ops !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
                     [OpFPReg 0, OpFPReg (fromIntegral (modrm .&. 0x0f))]
-              else return $ Instr 
-       	     (ops !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
+              else return $ Instr
+             (ops !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
                     [OpFPReg 0, OpFPReg (fromIntegral ((modrm .&. 0x0f) - 8))]
- where ops = [FADD, FMUL, FCOM, FCOMP, 
+ where ops = [FADD, FMUL, FCOM, FCOMP,
                FSUB, FSUBR, FDIV, FDIVR]
-             
+
 parseESC b@0xd9 = do
   modrm <- anyWord8
   let modrm' :: Word8
       modrm' = modrm - 0xc0
   if modrm <= 0xbf
      then do (op1', op2, mod, reg, rm) <- parseAddress32' OPNONE modrm
-	     let op1 = case op1' of 
-		         OpAddr a _ -> OpAddr a  (opsizes !! fromIntegral reg)
-			 op -> op
-             return $ Instr (lowOps !! fromIntegral reg) 
-       	              (opsizes !! fromIntegral reg) [op1]
+             let op1 = case op1' of
+                         OpAddr a _ -> OpAddr a  (opsizes !! fromIntegral reg)
+                         op -> op
+             return $ Instr (lowOps !! fromIntegral reg)
+                      (opsizes !! fromIntegral reg) [op1]
      else if (modrm < 0xd0)
              then if (modrm .&. 0x0f) < 8
-                    then return $ Instr 
-       	          (ops !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
+                    then return $ Instr
+                  (ops !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
                          [OpFPReg 0, OpFPReg (fromIntegral (modrm .&. 0x0f))]
-                    else return $ Instr 
-       	          (ops !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
+                    else return $ Instr
+                  (ops !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
                          [OpFPReg 0, OpFPReg (fromIntegral (modrm .&. 0x0f)
-       			      - 8)]
+                              - 8)]
               else case modrm of
-       		     0xd0 -> return $ Instr FNOP OPNONE []
+                     0xd0 -> return $ Instr FNOP OPNONE []
                      0xe0 -> return $ Instr FCHS OPNONE []
                      0xe1 -> return $ Instr FABS OPNONE []
                      0xe4 -> return $ Instr FTST OPNONE []
@@ -2420,7 +2420,7 @@ parseESC b@0xd9 = do
                      0xed -> return $ Instr FLDLN2 OPNONE []
                      0xee -> return $ Instr FLDZ OPNONE []
                      _ -> parseInvalidOpcode b
- where lowOps = [FLD, InvalidOpcode, FST, FSTP, 
+ where lowOps = [FLD, InvalidOpcode, FST, FSTP,
                   FLDENV, FLDCW, FSTENV, FSTCW]
        opsizes = [OPF32, OPNONE, OPF32, OPF32,
                    OPNONE, OPNONE, OPNONE, OPNONE]
@@ -2434,13 +2434,13 @@ parseESC 0xda = do
      then do (op1, op2, mod, reg, rm) <- parseAddress32' OPNONE modrm
              return $ Instr (ops !! fromIntegral reg) OPNONE [op1]
      else if (modrm < 0xe0)
-             then return $ Instr 
-       	     (ops' !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
+             then return $ Instr
+             (ops' !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
                     [OpFPReg 0, OpFPReg (fromIntegral (modrm .&. 0x0f))]
               else case modrm of
                      0xe1 -> return $ Instr FUCOMPP OPNONE []
                      _ -> parseInvalidOpcode 0xda
- where ops = [FIADD, FIMUL, FICOM, FICOMP, 
+ where ops = [FIADD, FIMUL, FICOM, FICOMP,
                FISUB, FISUBR, FIDIV, FIDIVR]
        ops' = [FCMOVB, FCMOVE, FCMOVBE, FCMOVU]
 
@@ -2450,24 +2450,24 @@ parseESC 0xdb = do
       modrm' = modrm - 0xc0
   if modrm <= 0xbf
      then do (op1', op2, mod, reg, rm) <- parseAddress32' OPNONE modrm
-	     let op1 = case op1' of 
-		         OpAddr a _ -> OpAddr a  (opsizes !! fromIntegral reg)
-			 op -> op
-             return $ Instr (ops !! fromIntegral reg) 
-       	              (opsizes !! fromIntegral reg) [op1]
-     else 
+             let op1 = case op1' of
+                         OpAddr a _ -> OpAddr a  (opsizes !! fromIntegral reg)
+                         op -> op
+             return $ Instr (ops !! fromIntegral reg)
+                      (opsizes !! fromIntegral reg) [op1]
+     else
       case modrm of
          0xe2 -> return $ Instr FCLEX OPNONE []
          0xe3 -> return $ Instr FINIT OPNONE []
          _ ->
            if (modrm .&. 0x0f) < 0x8
-             then return $ Instr 
-       	     (ops' !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
+             then return $ Instr
+             (ops' !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
                     [OpFPReg 0, OpFPReg (fromIntegral (modrm .&. 0x0f))]
-              else return $ Instr 
-       	     (ops' !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
+              else return $ Instr
+             (ops' !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
                     [OpFPReg 0, OpFPReg (fromIntegral ((modrm .&. 0x0f) - 8))]
- where ops = [FILD, FISTP, FIST, FISTP, 
+ where ops = [FILD, FISTP, FIST, FISTP,
                InvalidOpcode, FLD, InvalidOpcode, FSTP]
        opsizes = [OP32, OP32, OP32, OP32,
                    OPNONE, OPF80, OPNONE, OPF80]
@@ -2485,43 +2485,43 @@ parseESC 0xdc = do
        if modrm >= 0xd0 && modrm < 0xe0
         then parseInvalidOpcode 0xdc
         else if (modrm .&. 0x0f) < 0x8
-             then return $ Instr 
-       	     (ops !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
+             then return $ Instr
+             (ops !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
                     [OpFPReg (fromIntegral (modrm .&. 0x0f)), OpFPReg 0]
-              else return $ Instr 
-       	     (ops !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
+              else return $ Instr
+             (ops !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
                     [OpFPReg (fromIntegral ((modrm .&. 0x0f) - 8)), OpFPReg 0]
- where ops = [FADD, FMUL, FCOM, FCOMP, 
+ where ops = [FADD, FMUL, FCOM, FCOMP,
                FSUB, FSUBR, FDIV, FDIVR]
-             
+
 parseESC 0xdd = do
   modrm <- anyWord8
   let modrm' :: Word8
       modrm' = modrm - 0xc0
   if modrm <= 0xbf
      then do (op1', op2, mod, reg, rm) <- parseAddress32' OPNONE modrm
-	     let op1 = case op1' of 
-		         OpAddr a _ -> OpAddr a  (opsizes !! fromIntegral reg)
-			 op -> op
-             return $ Instr (ops !! fromIntegral reg) 
-       	              (opsizes !! fromIntegral reg) [op1]
+             let op1 = case op1' of
+                         OpAddr a _ -> OpAddr a  (opsizes !! fromIntegral reg)
+                         op -> op
+             return $ Instr (ops !! fromIntegral reg)
+                      (opsizes !! fromIntegral reg) [op1]
      else
        if (modrm >= 0xc8) && modrm <= 0xd0 || (modrm >= 0xf0 && modrm < 0xff)
         then parseInvalidOpcode 0xdc
         else if (modrm .&. 0x0f) < 0x8
-             then return $ Instr 
-       	     (ops' !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
+             then return $ Instr
+             (ops' !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
                     [OpFPReg (fromIntegral (modrm .&. 0x0f)), OpFPReg 0]
-              else return $ Instr 
-       	     (ops' !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
+              else return $ Instr
+             (ops' !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
                     [OpFPReg (fromIntegral ((modrm .&. 0x0f) - 8)), OpFPReg 0]
- where ops = [FLD, FISTTP, FST, FSTP, 
+ where ops = [FLD, FISTTP, FST, FSTP,
                FRSTOR, InvalidOpcode, FSAVE, FSTSW]
        opsizes = [OPF64, OP64, OPF64, OPF64,
                    OPNONE, OPNONE, OPNONE, OP16]
-       ops' = [FFREE, InvalidOpcode, FST, FSTP, 
+       ops' = [FFREE, InvalidOpcode, FST, FSTP,
                 FUCOM, FUCOMP]
-             
+
 parseESC 0xde = do
   modrm <- anyWord8
   let modrm' :: Word8
@@ -2532,21 +2532,21 @@ parseESC 0xde = do
      else
        if modrm >= 0xd0 && modrm <= 0xe0
         then case modrm of
-       	 0xd9 -> return $ Instr FCOMPP OPNONE []
-       	 _ -> parseInvalidOpcode 0xde
+         0xd9 -> return $ Instr FCOMPP OPNONE []
+         _ -> parseInvalidOpcode 0xde
         else if (modrm .&. 0x0f) < 0x8
-             then return $ Instr 
-       	     (ops' !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
+             then return $ Instr
+             (ops' !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
                     [OpFPReg (fromIntegral (modrm .&. 0x0f)), OpFPReg 0]
-              else return $ Instr 
-       	     (ops' !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
+              else return $ Instr
+             (ops' !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
                     [OpFPReg (fromIntegral ((modrm .&. 0x0f) - 8)), OpFPReg 0]
- where ops = [FIADD, FIMUL, FICOM, FICOMP, 
+ where ops = [FIADD, FIMUL, FICOM, FICOMP,
                FISUB, FISUBR, FIDIV, FIDIVR]
        ops' = [FADDP, FMULP, InvalidOpcode, InvalidOpcode,
                 FSUBRP, FSUBP, FDIVRP, FDIVP]
-             
-             
+
+
 parseESC 0xdf = do
   modrm <- anyWord8
   let modrm' :: Word8
@@ -2557,19 +2557,19 @@ parseESC 0xdf = do
      else
        case modrm of
            0xe0 -> return $ Instr FSTSW OPNONE [OpReg "ax" 0]
-           _ -> 
+           _ ->
              if (modrm >= 0xe8 && modrm <= 0xef) ||
                 (modrm >= 0xf0 && modrm <= 0xf7)
              then
              if (modrm .&. 0x0f) < 0x8
-             then return $ Instr 
-       	     (ops' !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
+             then return $ Instr
+             (ops' !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
                     [OpFPReg (fromIntegral (modrm .&. 0x0f)), OpFPReg 0]
-              else return $ Instr 
-       	     (ops' !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
+              else return $ Instr
+             (ops' !! fromIntegral ((modrm' `shiftR` 3))) OPNONE
                     [OpFPReg (fromIntegral ((modrm .&. 0x0f) - 8)), OpFPReg 0]
              else parseInvalidOpcode 0xdf
- where ops = [FILD, FISTPP, FIST, FISTP, 
+ where ops = [FILD, FISTPP, FIST, FISTP,
                FBLD, FILD, FBSTP, FISTP]
        ops' = [InvalidOpcode, InvalidOpcode, InvalidOpcode, InvalidOpcode,
                 InvalidOpcode, FUCOMIP, FCOMIP, InvalidOpcode]
@@ -2685,18 +2685,18 @@ cmovccname 15 = CMOVG
 parseGrp1 0x80 = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OP8
   immb <- anyWord8
-  return $ Instr (aluOps !! fromIntegral reg) OP8 
+  return $ Instr (aluOps !! fromIntegral reg) OP8
     [op1, OpImm (fromIntegral immb)]
 parseGrp1 0x81 = do
   opsize <- instrOperandSize
   (op1, op2, mod, reg, rm) <- parseAddress32 opsize
   immb <- anyWordZ
-  return $ Instr (aluOps !! fromIntegral reg) opsize 
+  return $ Instr (aluOps !! fromIntegral reg) opsize
     [op1, OpImm (fromIntegral immb)]
 parseGrp1 0x82 = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OP8
   immb <- anyWord8
-  return $ Instr (aluOps !! fromIntegral reg) OP8 
+  return $ Instr (aluOps !! fromIntegral reg) OP8
     [op1, OpImm (fromIntegral immb)]
 parseGrp1 0x83 = do
   opsize <- instrOperandSize
@@ -2717,7 +2717,7 @@ parseGrp1A b = do
 parseGrp2 0xc0 = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OP8
   immb <- anyWord8
-  return $ Instr (shiftOps !! fromIntegral reg) OP8 
+  return $ Instr (shiftOps !! fromIntegral reg) OP8
       [op1, OpImm (fromIntegral immb)]
 parseGrp2 0xc1 = do
   opsize <- instrOperandSize
@@ -2806,21 +2806,21 @@ parseGrp7 b = do
   case mod of
     3 -> case reg of
            0 -> case rm of
-       		  1 -> return $ Instr VMCALL OPNONE []
-       		  2 -> return $ Instr VMLAUNCH OPNONE []
-       		  3 -> return $ Instr VMRESUME OPNONE []
-       		  4 -> return $ Instr VMXOFF OPNONE []
-       		  _ -> parseInvalidOpcode b
+                  1 -> return $ Instr VMCALL OPNONE []
+                  2 -> return $ Instr VMLAUNCH OPNONE []
+                  3 -> return $ Instr VMRESUME OPNONE []
+                  4 -> return $ Instr VMXOFF OPNONE []
+                  _ -> parseInvalidOpcode b
            1 -> case rm of
-       		  0 -> return $ Instr MONITOR OPNONE []
-       		  1 -> return $ Instr MWAIT OPNONE []
-       		  _ -> parseInvalidOpcode b
+                  0 -> return $ Instr MONITOR OPNONE []
+                  1 -> return $ Instr MWAIT OPNONE []
+                  _ -> parseInvalidOpcode b
            4 -> return $ Instr SMSW OPNONE [op1]
            6 -> return $ Instr LMSW OPNONE [op1]
            7 -> case rm of
-       		  0 -> onlyIn64BitMode
-       	                 (\b -> return $ Instr SWAPGS OPNONE []) b
-       		  _ -> parseInvalidOpcode b
+                  0 -> onlyIn64BitMode
+                         (\b -> return $ Instr SWAPGS OPNONE []) b
+                  _ -> parseInvalidOpcode b
            _ -> parseInvalidOpcode b
     _ -> case reg of
            0 -> return $ Instr SGDT OPNONE [op1]
@@ -2854,9 +2854,9 @@ parseGrp9 b = do
                     else return $ Instr CMPXCHG8B OPNONE [op1]
             6 -> if hasPrefix 0x66 st
                    then return $ Instr VMCLEAR OPNONE [op1]
-       	     else if hasPrefix 0xf3 st
-       	          then return $ Instr VMXON OPNONE [op1]
-       	          else return $ Instr VMPTRLD OPNONE [op1]
+             else if hasPrefix 0xf3 st
+                  then return $ Instr VMXON OPNONE [op1]
+                  else return $ Instr VMPTRLD OPNONE [op1]
             7 -> return $ Instr VMPTRST OPNONE [op1]
             _ -> parseInvalidOpcode b
 
@@ -2878,11 +2878,11 @@ mmxInstr op1 mod reg rm name = do
   if hasPrefix 0x66 st
      then return $ Instr name OP128
            [OpReg (xmmregs !! fromIntegral rm) (fromIntegral rm),
-	    OpImm (fromIntegral imm)]
+            OpImm (fromIntegral imm)]
      else return $ Instr name OP64
            [OpReg (mmxregs !! fromIntegral rm) (fromIntegral rm),
-	    OpImm (fromIntegral imm)]
-       	
+            OpImm (fromIntegral imm)]
+
 parseGrp12 b = do
   st <- getState
   let opsize = if hasPrefix 0x66 st then OP128 else OP64
@@ -2914,13 +2914,13 @@ parseGrp14 b = do
     3 -> case reg of
            2 -> mmxInstr op1 mod reg rm PSRLQ
            3 -> if hasPrefix 0x66 st
-		   then mmxInstr op1 mod reg rm PSRLDQ
-       		   else parseInvalidOpcode b
+                   then mmxInstr op1 mod reg rm PSRLDQ
+                   else parseInvalidOpcode b
            6 -> mmxInstr op1 mod reg rm PSLLQ
            7 -> if hasPrefix 0x66 st
                    then mmxInstr op1 mod reg rm PSLLDQ
-       	           else parseInvalidOpcode b
-	   _ -> parseInvalidOpcode b
+                   else parseInvalidOpcode b
+           _ -> parseInvalidOpcode b
     _ -> parseInvalidOpcode b
 
 parseGrp15 b = do
@@ -2954,29 +2954,29 @@ parseXmmVW p p0xf3 p0x66 p0xf2 b =
        st <- getState
        let v = OpReg (xmmregs !! (fromIntegral reg)) (fromIntegral reg)
        let w = case op1 of
-	         OpReg _ num -> OpReg (xmmregs !! num) num
-		 op -> op
+                 OpReg _ num -> OpReg (xmmregs !! num) num
+                 op -> op
        if hasPrefix 0xf3 st
-	  then return $ Instr p0xf3 OP128 [v, w]
-	  else if hasPrefix 0x66 st
-	          then return $ Instr p0x66 OP128 [v, w]
-		  else if hasPrefix 0xf2 st
-		          then return $ Instr p0xf2 OP128 [v, w]
-			  else return $ Instr p OP128 [v, w]
+          then return $ Instr p0xf3 OP128 [v, w]
+          else if hasPrefix 0x66 st
+                  then return $ Instr p0x66 OP128 [v, w]
+                  else if hasPrefix 0xf2 st
+                          then return $ Instr p0xf2 OP128 [v, w]
+                          else return $ Instr p OP128 [v, w]
 parseXmmWV p p0xf3 p0x66 p0xf2 b =
     do (op1, op2, mod, reg, rm) <- parseAddress32 OP128
        st <- getState
        let w = OpReg (xmmregs !! (fromIntegral reg)) (fromIntegral reg)
        let v = case op1 of
-	         OpReg _ num -> OpReg (xmmregs !! num) num
-		 op -> op
+                 OpReg _ num -> OpReg (xmmregs !! num) num
+                 op -> op
        if hasPrefix 0xf3 st
-	  then return $ Instr p0xf3 OP128 [v, w]
-	  else if hasPrefix 0x66 st
-	          then return $ Instr p0x66 OP128 [v, w]
-		  else if hasPrefix 0xf2 st
-		          then return $ Instr p0xf2 OP128 [v, w]
-			  else return $ Instr p OP128 [v, w]
+          then return $ Instr p0xf3 OP128 [v, w]
+          else if hasPrefix 0x66 st
+                  then return $ Instr p0x66 OP128 [v, w]
+                  else if hasPrefix 0xf2 st
+                          then return $ Instr p0xf2 OP128 [v, w]
+                          else return $ Instr p OP128 [v, w]
 
 parseXmmGU p p0xf3 p0x66 p0xf2 b =
     do (mod, reg, rm) <- parseModRM
@@ -2984,12 +2984,12 @@ parseXmmGU p p0xf3 p0x66 p0xf2 b =
        let g = OpReg (regnames32 !! (fromIntegral reg)) (fromIntegral reg)
        let u = OpReg (xmmregs !! (fromIntegral rm)) (fromIntegral rm)
        if hasPrefix 0xf3 st
-	  then return $ Instr p0xf3 OP32 [g, u]
-	  else if hasPrefix 0x66 st
-	          then return $ Instr p0x66 OP32 [g, u]
-		  else if hasPrefix 0xf2 st
-		          then return $ Instr p0xf2 OP32 [g, u]
-			  else return $ Instr p OP32 [g, u]
+          then return $ Instr p0xf3 OP32 [g, u]
+          else if hasPrefix 0x66 st
+                  then return $ Instr p0x66 OP32 [g, u]
+                  else if hasPrefix 0xf2 st
+                          then return $ Instr p0xf2 OP32 [g, u]
+                          else return $ Instr p OP32 [g, u]
 
 parseMOVUPS b@0x10 = parseXmmVW MOVUPS MOVSS MOVUPD MOVSD b
 parseMOVUPS b@0x11 = parseXmmWV MOVUPS MOVSS MOVUPD MOVSD b
@@ -2997,32 +2997,32 @@ parseMOVLPS b@0x12 = parseXmmWV MOVLPS MOVSLDUP MOVLPD MOVDDUP b
 parseMOVLPS b@0x13 = parseXmmVW MOVLPS InvalidOpcode MOVLPD InvalidOpcode b
 parseUNPCKLPS b@0x14 =
     parseXmmVW UNPCKLPS InvalidOpcode UNPCKLPD InvalidOpcode b
-parseUNPCKHPS b@0x15 = 
+parseUNPCKHPS b@0x15 =
     parseXmmVW UNPCKHPS InvalidOpcode UNPCKHPD InvalidOpcode b
 parseMOVHPS b@0x16 = parseXmmVW MOVHPS MOVLSDUP MOVHPD MOVLHPS b
 parseMOVHPS b@0x17 = parseXmmVW MOVHPS InvalidOpcode MOVHPD InvalidOpcode b
 
-parseMOVCtrlDebug 0x20 = 
+parseMOVCtrlDebug 0x20 =
     do (mod, reg, rm) <- parseModRM
        return $ Instr MOV OPNONE [OpReg (regnames32 !! fromIntegral rm)
-				  (fromIntegral rm),
-				  OpReg ("cr" ++ show reg) (fromIntegral reg)]
-parseMOVCtrlDebug 0x21 = 
+                                  (fromIntegral rm),
+                                  OpReg ("cr" ++ show reg) (fromIntegral reg)]
+parseMOVCtrlDebug 0x21 =
     do (mod, reg, rm) <- parseModRM
        return $ Instr MOV OPNONE [OpReg (regnames32 !! fromIntegral rm)
-				  (fromIntegral rm),
-				  OpReg ("db" ++ show reg) (fromIntegral reg)]
-parseMOVCtrlDebug 0x22 = 
+                                  (fromIntegral rm),
+                                  OpReg ("db" ++ show reg) (fromIntegral reg)]
+parseMOVCtrlDebug 0x22 =
     do (mod, reg, rm) <- parseModRM
        return $ Instr MOV OPNONE [OpReg ("cr" ++ show reg) (fromIntegral reg),
-				  OpReg (regnames32 !! fromIntegral rm)
-				  (fromIntegral rm)]
-parseMOVCtrlDebug 0x23 = 
+                                  OpReg (regnames32 !! fromIntegral rm)
+                                  (fromIntegral rm)]
+parseMOVCtrlDebug 0x23 =
     do (mod, reg, rm) <- parseModRM
        return $ Instr MOV OPNONE [OpReg ("db" ++ show reg) (fromIntegral reg),
-				  OpReg (regnames32 !! fromIntegral rm)
-				  (fromIntegral rm)]
-  
+                                  OpReg (regnames32 !! fromIntegral rm)
+                                  (fromIntegral rm)]
+
 
 parseMOVAPS b@0x28 = parseXmmVW MOVAPS InvalidOpcode MOVAPD InvalidOpcode b
 parseMOVAPS b@0x29 = parseXmmWV MOVAPS InvalidOpcode MOVAPD InvalidOpcode b
@@ -3037,7 +3037,7 @@ parseCMOVcc b= do
   opsize <- instrOperandSize
   (op1, op2, mod, reg, rm) <- parseAddress32 opsize
   return $ Instr (cmovccname (b .&. 0xf)) OPNONE [op2, op1]
-  
+
 parseMOVSKPS = parseXmmGU MOVMSKPS InvalidOpcode MOVMSKPD InvalidOpcode
 
 parseSQRTPS = parseXmmVW SQRTPS SQRTSS SQRTPD SQRTSD
@@ -3074,20 +3074,20 @@ parsePCMPEQB = parseUnimplemented
 parsePCMPEQW = parseUnimplemented
 parsePCMPEQD = parseUnimplemented
 
-parseVMREAD b = 
+parseVMREAD b =
     do st <- getState
        if in64BitMode st
-	  then do (op1, op2, mod, reg, rm) <- parseAddress32 OP64
-		  return $ Instr VMREAD OP64 [op1, op2]
-	  else do (op1, op2, mod, reg, rm) <- parseAddress32 OP32
-		  return $ Instr VMREAD OP32 [op1, op2]
-parseVMWRITE b = 
+          then do (op1, op2, mod, reg, rm) <- parseAddress32 OP64
+                  return $ Instr VMREAD OP64 [op1, op2]
+          else do (op1, op2, mod, reg, rm) <- parseAddress32 OP32
+                  return $ Instr VMREAD OP32 [op1, op2]
+parseVMWRITE b =
     do st <- getState
        if in64BitMode st
-	  then do (op1, op2, mod, reg, rm) <- parseAddress32 OP64
-		  return $ Instr VMWRITE OP64 [op1, op2]
-	  else do (op1, op2, mod, reg, rm) <- parseAddress32 OP32
-		  return $ Instr VMWRITE OP32 [op1, op2]
+          then do (op1, op2, mod, reg, rm) <- parseAddress32 OP64
+                  return $ Instr VMWRITE OP64 [op1, op2]
+          else do (op1, op2, mod, reg, rm) <- parseAddress32 OP32
+                  return $ Instr VMWRITE OP32 [op1, op2]
 
 parseHADDPS = parseXmmVW InvalidOpcode InvalidOpcode HADDPD HADDPS
 parseHSUBPS = parseXmmVW InvalidOpcode InvalidOpcode HSUBPS HSUBPD
@@ -3107,28 +3107,28 @@ parseJccLong b = do
 parseSETcc b = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OP8
   case op1 of
-    OpReg name num -> return $ Instr (setccname (b .&. 0xf)) OPNONE 
-		      [OpReg (regnames8 !! fromIntegral num) num]
+    OpReg name num -> return $ Instr (setccname (b .&. 0xf)) OPNONE
+                      [OpReg (regnames8 !! fromIntegral num) num]
     _ -> return $ Instr (setccname (b .&. 0xf)) OPNONE [op1]
 
-parseSHLD 0xa4 = 
+parseSHLD 0xa4 =
     do opsize <- instrOperandSize
        (op1, op2, mod, reg, rm) <- parseAddress32 opsize
        b <- anyWord8
        opsize <- instrOperandSize
        return $ Instr SHLD opsize [op1, op2, OpImm (fromIntegral b)]
-parseSHLD 0xa5 = 
+parseSHLD 0xa5 =
     do opsize <- instrOperandSize
        (op1, op2, mod, reg, rm) <- parseAddress32 opsize
        opsize <- instrOperandSize
        return $ Instr SHLD opsize [op1, op2, OpReg "cl" 1]
-parseSHRD 0xac = 
+parseSHRD 0xac =
     do opsize <- instrOperandSize
        (op1, op2, mod, reg, rm) <- parseAddress32 opsize
        b <- anyWord8
        opsize <- instrOperandSize
        return $ Instr SHRD opsize [op1, op2, OpImm (fromIntegral b)]
-parseSHRD 0xad = 
+parseSHRD 0xad =
     do opsize <- instrOperandSize
        (op1, op2, mod, reg, rm) <- parseAddress32 opsize
        opsize <- instrOperandSize
@@ -3140,7 +3140,7 @@ parsePINSRW = parseUnimplemented
 parsePEXTRW = parseUnimplemented
 parseSHUFPS = parseUnimplemented
 
-parseBSWAP b = 
+parseBSWAP b =
     do let reg = (b .&. 0xf) - 8
        r <- registerName (fromIntegral reg)
        opsize <- instrOperandSize
@@ -3151,48 +3151,48 @@ parseADDSUBPS = parseXmmVW InvalidOpcode InvalidOpcode ADDSUBPD ADDUBPS
 parseMmxXmmPQVW opcode b =
     do st <- getState
        if hasPrefix 0x66 st
-	  then do (op1, op2, mod, reg, rm) <- parseAddress32 OP128
-		  let v = OpReg (xmmregs !! (fromIntegral reg)) 
-			  (fromIntegral reg)
-		  let w = case op1 of
-			    OpReg _ num -> OpReg (xmmregs !! num) num
-			    op -> op
-		  return $ Instr opcode OP128 [v, w]
-	  else do (op1, op2, mod, reg, rm) <- parseAddress32 OP64
-		  let p = OpReg (mmxregs !! (fromIntegral reg)) 
-			  (fromIntegral reg)
-		  let q = case op1 of
-			    OpReg _ num -> OpReg (mmxregs !! num) num
-			    op -> op
-		  return $ Instr opcode OP128 [p, q]
+          then do (op1, op2, mod, reg, rm) <- parseAddress32 OP128
+                  let v = OpReg (xmmregs !! (fromIntegral reg))
+                          (fromIntegral reg)
+                  let w = case op1 of
+                            OpReg _ num -> OpReg (xmmregs !! num) num
+                            op -> op
+                  return $ Instr opcode OP128 [v, w]
+          else do (op1, op2, mod, reg, rm) <- parseAddress32 OP64
+                  let p = OpReg (mmxregs !! (fromIntegral reg))
+                          (fromIntegral reg)
+                  let q = case op1 of
+                            OpReg _ num -> OpReg (mmxregs !! num) num
+                            op -> op
+                  return $ Instr opcode OP128 [p, q]
 
 parseMmxXmmMPMV opcode1 opcode2 b =
     do st <- getState
        if hasPrefix 0x66 st
-	  then do (op1, op2, mod, reg, rm) <- parseAddress32 OP128
-		  let v = OpReg (xmmregs !! (fromIntegral reg)) 
-			  (fromIntegral reg)
-		  return $ Instr opcode2 OP128 [op1, v]
-	  else do (op1, op2, mod, reg, rm) <- parseAddress32 OP64
-		  let p = OpReg (mmxregs !! (fromIntegral reg)) 
-			  (fromIntegral reg)
-		  return $ Instr opcode1 OP128 [op1, p]
+          then do (op1, op2, mod, reg, rm) <- parseAddress32 OP128
+                  let v = OpReg (xmmregs !! (fromIntegral reg))
+                          (fromIntegral reg)
+                  return $ Instr opcode2 OP128 [op1, v]
+          else do (op1, op2, mod, reg, rm) <- parseAddress32 OP64
+                  let p = OpReg (mmxregs !! (fromIntegral reg))
+                          (fromIntegral reg)
+                  return $ Instr opcode1 OP128 [op1, p]
 
 parseMmxXmmPNVU opcode b =
     do st <- getState
        if hasPrefix 0x66 st
-	  then do (mod, reg, rm) <- parseModRM
-		  let v = OpReg (xmmregs !! (fromIntegral reg)) 
-			  (fromIntegral reg)
-		  let u = OpReg (xmmregs !! (fromIntegral rm))
-			  (fromIntegral reg)
-		  return $ Instr opcode OP128 [v, u]
-	  else do (op1, op2, mod, reg, rm) <- parseAddress32 OP64
-		  let p = OpReg (mmxregs !! (fromIntegral reg)) 
-			  (fromIntegral reg)
-		  let n = OpReg (mmxregs !! (fromIntegral rm))
-			  (fromIntegral reg)
-		  return $ Instr opcode OP128 [p, n]
+          then do (mod, reg, rm) <- parseModRM
+                  let v = OpReg (xmmregs !! (fromIntegral reg))
+                          (fromIntegral reg)
+                  let u = OpReg (xmmregs !! (fromIntegral rm))
+                          (fromIntegral reg)
+                  return $ Instr opcode OP128 [v, u]
+          else do (op1, op2, mod, reg, rm) <- parseAddress32 OP64
+                  let p = OpReg (mmxregs !! (fromIntegral reg))
+                          (fromIntegral reg)
+                  let n = OpReg (mmxregs !! (fromIntegral rm))
+                          (fromIntegral reg)
+                  return $ Instr opcode OP128 [p, n]
 
 parsePSRLW = parseMmxXmmPQVW PSRLW
 parsePSRLD = parseMmxXmmPQVW PSRLD
@@ -3201,42 +3201,42 @@ parsePADDQ = parseMmxXmmPQVW PADDQ
 parsePMULLW = parseMmxXmmPQVW PMULLW
 parseMOVQ b@0x6f = parseUnimplemented b
 parseMOVQ b@0x7f = parseUnimplemented b
-parseMOVQ b@0xd6 = 
+parseMOVQ b@0xd6 =
     do st <- getState
        if hasPrefix 0x66 st
-	  then do (op1, op2, mod, reg, rm) <- parseAddress32 OP64
-		  return $ Instr MOVQ OP64 [op1, op2]
-	  else if hasPrefix 0xf3 st
-	          then do (mod, reg, rm) <- parseModRM
-			  return $ Instr MOVQ OPNONE 
-				     [OpReg (xmmregs !! (fromIntegral reg))
-				      (fromIntegral reg),
-				      OpReg (mmxregs !! (fromIntegral rm))
-				      (fromIntegral rm)]
-		  else
-		    if hasPrefix 0xf2 st
-		       then do (mod, reg, rm) <- parseModRM
-			       return $ Instr MOVQ OPNONE
-				[OpReg (mmxregs !! (fromIntegral reg))
-				 (fromIntegral reg),
-				 OpReg (xmmregs !! (fromIntegral rm))
-				 (fromIntegral rm)]
-		       else parseInvalidOpcode b
-			  
-parsePMOVMSKB b = 
+          then do (op1, op2, mod, reg, rm) <- parseAddress32 OP64
+                  return $ Instr MOVQ OP64 [op1, op2]
+          else if hasPrefix 0xf3 st
+                  then do (mod, reg, rm) <- parseModRM
+                          return $ Instr MOVQ OPNONE
+                                     [OpReg (xmmregs !! (fromIntegral reg))
+                                      (fromIntegral reg),
+                                      OpReg (mmxregs !! (fromIntegral rm))
+                                      (fromIntegral rm)]
+                  else
+                    if hasPrefix 0xf2 st
+                       then do (mod, reg, rm) <- parseModRM
+                               return $ Instr MOVQ OPNONE
+                                [OpReg (mmxregs !! (fromIntegral reg))
+                                 (fromIntegral reg),
+                                 OpReg (xmmregs !! (fromIntegral rm))
+                                 (fromIntegral rm)]
+                       else parseInvalidOpcode b
+
+parsePMOVMSKB b =
     do st <- getState
        (mod, reg, rm) <- parseModRM
        if hasPrefix 0x66 st
-	  then do return $ Instr PMOVMSKB OPNONE 
-			     [OpReg (regnames32 !! (fromIntegral reg))
-			      (fromIntegral reg),
-			      OpReg (xmmregs !! (fromIntegral rm))
-			      (fromIntegral rm)]
-	  else do return $ Instr PMOVMSKB OPNONE 
-			     [OpReg (regnames32 !! (fromIntegral reg))
-			      (fromIntegral reg),
-			      OpReg (mmxregs !! (fromIntegral rm))
-			      (fromIntegral rm)]
+          then do return $ Instr PMOVMSKB OPNONE
+                             [OpReg (regnames32 !! (fromIntegral reg))
+                              (fromIntegral reg),
+                              OpReg (xmmregs !! (fromIntegral rm))
+                              (fromIntegral rm)]
+          else do return $ Instr PMOVMSKB OPNONE
+                             [OpReg (regnames32 !! (fromIntegral reg))
+                              (fromIntegral reg),
+                              OpReg (mmxregs !! (fromIntegral rm))
+                              (fromIntegral rm)]
 parsePSUBUSB = parseMmxXmmPQVW PSUBUSB
 parsePSUBUSW = parseMmxXmmPQVW PSUBUSW
 parsePMINUB = parseMmxXmmPQVW PMINUB
@@ -3261,14 +3261,14 @@ parsePADDSB = parseMmxXmmPQVW PADDSB
 parsePADDSW = parseMmxXmmPQVW PADDSW
 parsePMAXSW = parseMmxXmmPQVW PMAXSW
 parsePXOR = parseMmxXmmPQVW PXOR
-parseLDDQU b = 
+parseLDDQU b =
     do st <- getState
        if hasPrefix 0xf2 st
-	  then do (op1, op2, mod, reg, rm) <- parseAddress32 OP128
-		  let v = OpReg (xmmregs !! (fromIntegral reg))
-		          (fromIntegral reg)
-		  return $ Instr LDDQU OP128 [v, op1]
-	  else parseInvalidOpcode b
+          then do (op1, op2, mod, reg, rm) <- parseAddress32 OP128
+                  let v = OpReg (xmmregs !! (fromIntegral reg))
+                          (fromIntegral reg)
+                  return $ Instr LDDQU OP128 [v, op1]
+          else parseInvalidOpcode b
 parsePSLLW = parseMmxXmmPQVW PSLLW
 parsePSLLD = parseMmxXmmPQVW PSLLD
 parsePSLLQ = parseMmxXmmPQVW PSLLQ
