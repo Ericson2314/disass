@@ -55,6 +55,7 @@
 -- track of the current position, etc.
 --------------------------------------------------------------------------
 
+{-# LANGUAGE FlexibleContexts #-}
 module Language.Assembly.X86 (
   -- * Types
   Opcode,

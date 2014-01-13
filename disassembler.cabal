@@ -20,5 +20,4 @@ library
     ,                 mtl        >= 1   && < 3
     ,                 parsec     >= 1   && < 4
 
-  extensions:         FlexibleContexts
   exposed-modules:    Language.Assembly.X86
