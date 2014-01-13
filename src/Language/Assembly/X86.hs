@@ -2767,13 +2767,12 @@ parsePADDSW = parseMmxXmmPQVW PADDSW
 parsePMAXSW = parseMmxXmmPQVW PMAXSW
 parsePXOR = parseMmxXmmPQVW PXOR
 parseLDDQU b =
-    do st <- getState
-       if hasPrefix 0xf2 st
-          then do (op1, op2, mod, reg, rm) <- parseAddress32 OP128
-                  let v = OpReg (xmmregs !! (fromIntegral reg))
-                          (fromIntegral reg)
-                  return $ Instr LDDQU OP128 [v, op1]
-          else parseInvalidOpcode b
+  do st <- getState
+     if hasPrefix 0xf2 st
+       then do (op1, op2, mod, reg, rm) <- parseAddress32 OP128
+               let v = OpReg (xmmregs !! fromIntegral reg) $ fromIntegral reg
+               return $ Instr LDDQU OP128 [v, op1]
+       else parseInvalidOpcode b
 parsePSLLW = parseMmxXmmPQVW PSLLW
 parsePSLLD = parseMmxXmmPQVW PSLLD
 parsePSLLQ = parseMmxXmmPQVW PSLLQ
