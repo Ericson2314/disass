@@ -20,5 +20,5 @@ library
     ,                 mtl        >= 1   && < 3
     ,                 parsec     >= 1   && < 4
 
-  extensions: FlexibleContexts
-  exposed-modules: Text.Disassembler.X86Disassembler
+  extensions:         FlexibleContexts
+  exposed-modules:    Text.Disassembler.X86Disassembler
