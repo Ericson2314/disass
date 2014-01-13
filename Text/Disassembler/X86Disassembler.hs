@@ -4,7 +4,7 @@
 -- Copyright   :  (c) Martin Grabmueller and Dirk Kleeblatt
 -- License     :  BSD3
 -- 
--- Maintainer  :  martin.grabmueller@eleven.de,klee@cs.tu-berlin.de
+-- Maintainer  :  martin@grabmueller.de,klee@cs.tu-berlin.de
 -- Stability   :  provisional
 -- Portability :  portable
 --
