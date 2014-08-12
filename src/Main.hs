@@ -15,10 +15,12 @@ import           Data.Set (Set(..))
 import qualified Data.Set as S
 
 import qualified Data.Text.Lazy as T
+import qualified Data.Text.Lazy.Builder as TB
 import qualified Data.Text.Lazy.IO as T
 
 import           Data.Foldable
 import           Data.Maybe
+import           Data.Monoid
 import           Data.Traversable
 
 import           System.IO
@@ -44,7 +46,10 @@ main = do
       T.hPutStr fout =<< (convert <$> T.hGetContents fin)
 
 convert :: T.Text -> T.Text
-convert x = T.unlines $ ("___ImageBase equ 0x401000":) $ convertLine <$> (drop 7 $ T.lines x)
+convert x = TB.toLazyText
+	    $ (TB.fromLazyText "___ImageBase equ 0x401000\n" <>)
+	    $ (TB.fromLazyText "%include \"sym.asm\"\n" <>)
+	    $ foldr (<>) (TB.fromLazyText "") $ convertLine <$> (drop 7 $ T.lines x)
 
 choose :: a -> [Maybe a] -> a
 choose x = foldr (flip fromMaybe) x
@@ -53,86 +58,37 @@ thread :: a -> [a -> Maybe a] -> a
 thread x l = foldl' f x l
   where f old g = fromMaybe old $ g old
 
-(><) :: T.Text -> T.Text -> Maybe (T.Text, T.Text, T.Text, [T.Text])
-t >< t2 = t =~~ t2
+(t :: T.Text) >< (t2 :: T.Text) = t =~~ t2
 
-convertLine :: T.Text -> T.Text
-convertLine x = fromMaybe (error $ "bad shit: " ++ T.unpack x) $ do
-  let (addr, r)      = T.splitAt 8 x
-      (colon, instr) = T.splitAt 1 r
-  guard $ ":" == colon
+convertLine :: T.Text -> TB.Builder
+convertLine x = TB.singleton '\n' <> TB.fromLazyText instr' <> TB.fromLazyText " ; " <> TB.fromLazyText addr
+  where (addr, instr) = T.splitAt 32 x
+	instr' = thread instr [
+	    \instr -> do (before, _ :: T.Text , after, [g1, g2]) <- instr >< "([0-9a-z]*) *<(.*)>"
+			 return $ T.concat [before, g2, " ;RAW: ", g1, after]
 
-  return $ thread instr $
-    [ \instr -> do (before, _, after, [g1, g2]) <- instr >< "([0-9a-z]*) *<(.*)>$"
-		   return $ T.concat [before, g2, " ;RAW: ", g1, after]
-    , let f instr = do (before, _, after, [g]) <- instr >< "(.s:)\\["
-                       return $ T.concat [before, "[" , g, after]
-      in f >=> f -- need to do again if successful
-    , \instr -> return $ T.replace " PTR" "" instr
-    , \instr -> do (before, _, after, [op]) <- instr >< "(lods|movs|stos|scas|cmps|ins|outs)"
-		   (_, _, _, [size])        <- instr >< "(BYTE|DWORD|WORD)"
-		   let suffix = case T.unpack size of
-			 "BYTE"  -> 'b'
-			 "DWORD" -> 'd'
-			 "WORD"  -> 'w'
+	  , let f instr = do (before, _ :: T.Text, after, [g]) <- instr >< "(.s:)\\["
+			     return $ T.concat [before, "[" , g, after]
+	    in \instr -> return $ thread instr [f, f]
 
-		   return $ T.concat [before, T.snoc op suffix, after]
-    , const mzero
-    ]
+          , let f instr = do (before, _ :: T.Text, after, [g1, g2, g3]) <- instr >< "(,| )(.s:0x[0-9a-fA-F]+)(,| |$)"
+                             return $ T.concat [before, g1, "[" , g2, "]", g3, after]
+            in \instr -> return $ thread instr [f, f]
 
+	  , \instr -> return $ T.replace " PTR" "" instr
 
+	  , \instr -> do (before, _ :: T.Text, _ :: T.Text, [op]) <- instr >< "(lods|movs|stos|scas|cmps|ins|outs) "
+			 (_ :: T.Text, _ :: T.Text, _ :: T.Text, [size]) <- instr >< "(BYTE|DWORD|WORD)"
+			 let suffix = case T.unpack size of
+			       "BYTE"  -> 'b'
+			       "DWORD" -> 'd'
+			       "WORD"  -> 'w'
+			 return $ T.concat [before, op `T.snoc` suffix]
 
-
-
-
-
-
-asmFiles :: FilePath -> IO [FilePath]
-asmFiles root = F.find (always)
-		       (and <$> sequence [ fileType ==? RegularFile
-					 , extension ==? ".asm" ||? extension ==? ".inc"
-					 ])
-		       root
-
-allFiles :: IO [FilePath]
-allFiles = fmap concat $ mapM asmFiles $ ("/home/jcericso/git/engine2/" </>)
-	 <$> ["shared/" , "ra2/src" , "ra2/inc" , "ts/src" , "ts/inc"]
-
-allSyms :: IO (Set T.Text)
-allSyms = fold <$> (mapM f =<< allFiles)
-  where f :: FilePath -> IO (Set T.Text)
-	f p = do body <- T.readFile p
-		 let m  = T.words <$> T.lines body
-		     m' = flip mapMaybe m $ \case
-		       (a:b:_) -> do guard $ a == "cextern" || a == "cglobal"
-				     return b
-		       _       -> mzero
-		 return $ S.fromList m'
-
-tokenize = T.groupBy $ \c1 c2 -> not $ S.member c2 split || S.member c1 split
-  where split = S.fromList "[]()<>{} ,+-/*"
-
-prepend :: IO ()
-prepend = do
-  set <- allSyms
-  let f :: T.Text -> T.Text
-      f x = T.unlines $ fmap (i . T.concat) $ (fmap . fmap) (h . g) $ fmap tokenize $ T.lines x
-
-      g :: T.Text -> T.Text
-      g x = if S.member x set
-	       || T.isPrefixOf "str_" x
-	    then T.cons '_' x
-	    else x
-
-      h x
-	| x == "cglobal" = "global"
-	| x == "cextern" = "extern"
-	| otherwise      = x
-
-      i = T.replace "StringZ _" "StringZ "
-
-  mapM_ (F.modifyInPlace f) =<< allFiles
-
-instance F.Streamable T.Text where
-  readAll = T.hGetContents
-  writeAll = T.hPutStr
+	  , let f instr = do (before, _ :: T.Text, after, [g]) <- instr >< "st\\((.)\\)"
+			     return $ T.concat [before, "st", g, after]
+	    in \instr -> return $ thread instr [f, f]
+          , let f instr = do (before, _ :: T.Text, after, [g1, g2]) <- instr >< "(,| )st(,| |$)"
+			     return $ T.concat [before, g1, "st0", g2, after]
+	    in \instr -> return $ thread instr [f, f]
+	  ]
