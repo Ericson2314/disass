@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Language.Assembly.X86.Print where
 
 import Data.Char
@@ -16,52 +18,46 @@ showOp = (map toLower) . show
 
 -- Show an operand in AT&T style.
 
-showAttOps (OpImm w) = showImm w
-showAttOps (OpAddr w _) = showAddr w
-showAttOps (OpReg s num) = "%" ++ s
-showAttOps (OpFPReg 0) = "%st"
-showAttOps (OpFPReg i) = "%st(" ++ show i ++ ")"
-showAttOps (OpInd s _) = "(%" ++ s ++ ")"
-showAttOps (OpIndDisp s disp _) = show disp ++ "(%" ++ s ++ ")"
-showAttOps (OpBaseIndex b i s _) = "(%" ++ b ++ ",%" ++ i ++ "," ++ show s ++ ")"
-showAttOps (OpIndexDisp i s disp _) = show disp ++ "(%" ++ i ++ "," ++
-  show s ++ ")"
-showAttOps (OpBaseIndexDisp b i s disp _) = show disp ++ "(%" ++ b ++ ",%" ++
-  i ++ "," ++ show s ++ ")"
+showAttOps = \case
+  (OpImm w)                      -> showImm w
+  (OpAddr w _)                   -> showAddr w
+  (OpReg s num)                  -> "%" ++ s
+  (OpFPReg 0)                    -> "%st"
+  (OpFPReg i)                    -> "%st(" ++ show i ++ ")"
+  (OpInd s _)                    -> "(%" ++ s ++ ")"
+  (OpIndDisp s disp _)           -> show disp ++ "(%" ++ s ++ ")"
+  (OpBaseIndex b i s _)          -> "(%" ++ b ++ ",%" ++ i ++ "," ++ show s ++ ")"
+  (OpIndexDisp i s disp _)       -> show disp ++ "(%" ++ i ++ "," ++ show s ++ ")"
+  (OpBaseIndexDisp b i s disp _) -> show disp ++ "(%" ++ b ++ ",%" ++ i ++ "," ++ show s ++ ")"
 
 -- Show an operand in Intel style.
 
-showIntelOps opsize (OpImm w) = showIntelImm w
-showIntelOps opsize (OpAddr w sz) = opInd sz ++ "[" ++ showIntelAddr w ++ "]"
-showIntelOps opsize (OpReg s num) = s
-showIntelOps opsize (OpFPReg 0) = "st"
-showIntelOps opsize (OpFPReg i) = "st(" ++ show i ++ ")"
-showIntelOps opsize (OpInd s sz) = opInd sz ++ "[" ++ s ++ "]"
-showIntelOps opsize (OpIndDisp s disp sz) =
-    opInd sz ++ "[" ++ s ++
-       (if disp < 0 then "" else "+") ++ show disp ++ "]"
-showIntelOps opsize (OpBaseIndex b i s sz) =
-    opInd sz ++ "[" ++ b ++ "+" ++ i ++ "*" ++ show s ++ "]"
-showIntelOps opsize (OpIndexDisp i s disp sz) =
-    opInd sz ++ "[" ++ i ++ "*" ++ show s ++
-       (if disp < 0 then "" else "+") ++ show disp ++ "]"
-showIntelOps opsize (OpBaseIndexDisp b i s disp sz) =
-    opInd sz ++ "[" ++ b ++ "+" ++ i ++ "*" ++ show s ++
-       (if disp < 0 then "" else "+") ++
-      show disp ++ "]"
-opInd OPNONE = ""
-opInd OP8 = "byte ptr "
-opInd OP16 = "word ptr "
-opInd OP32 = "dword ptr "
-opInd OPF32 = "dword ptr "
-opInd OP64 = "qword ptr "
-opInd OPF64 = "qword ptr "
-opInd OPF80 = "tbyte ptr "
-opInd OP128 = "dqword ptr "
+showIntelOps opsize = \case
+  (OpImm w)                       -> showIntelImm w
+  (OpAddr w sz)                   -> opInd sz ++ "[" ++ showIntelAddr w ++ "]"
+  (OpReg s num)                   -> s
+  (OpFPReg 0)                     -> "st"
+  (OpFPReg i)                     -> "st(" ++ show i ++ ")"
+  (OpInd s sz)                    -> opInd sz ++ "[" ++ s ++ "]"
+  (OpIndDisp s disp sz)           -> opInd sz ++ "[" ++ s ++ (if disp < 0 then "" else "+") ++ show disp ++ "]"
+  (OpBaseIndex b i s sz)          -> opInd sz ++ "[" ++ b ++ "+" ++ i ++ "*" ++ show s ++ "]"
+  (OpIndexDisp i s disp sz)       -> opInd sz ++ "[" ++ i ++ "*" ++ show s ++ (if disp < 0 then "" else "+") ++ show disp ++ "]"
+  (OpBaseIndexDisp b i s disp sz) -> opInd sz ++ "[" ++ b ++ "+" ++ i ++ "*" ++ show s ++ (if disp < 0 then "" else "+") ++ show disp ++ "]"
+
+opInd = \case
+  OPNONE -> ""
+  OP8    -> "byte ptr "
+  OP16   -> "word ptr "
+  OP32   -> "dword ptr "
+  OPF32  -> "dword ptr "
+  OP64   -> "qword ptr "
+  OPF64  -> "qword ptr "
+  OPF80  -> "tbyte ptr "
+  OP128  -> "dqword ptr "
 
 
 instance Show Instruction where
-    show = showIntel
+  show = showIntel
 
 -- Show an integer as an 8-digit hexadecimal number with leading zeroes.
 
@@ -109,38 +105,22 @@ data ShowStyle = IntelStyle             -- ^ Show in Intel style
 -- | Show an instruction in Intel style.
 
 showIntel :: Instruction -> [Char]
-showIntel (BadInstruction b desc pos bytes) =
-    showPosBytes pos bytes ++
-    "(" ++ desc ++ ", byte=" ++ show b ++ ")"
-showIntel (PseudoInstruction pos s) =
-    hex32 pos ++ "                          " ++ s
-showIntel (Instruction op opsize [] pos bytes) =
-    showPosBytes pos bytes ++
-       showOp op
-showIntel (Instruction op opsize ops pos bytes) =
-    showPosBytes pos bytes ++
-        enlarge (showOp op) 6 ++ " " ++
-       concat (intersperse "," (map (showIntelOps opsize) ops))
+showIntel  = \case
+  (BadInstruction b desc pos bytes)     -> showPosBytes pos bytes ++ "(" ++ desc ++ ", byte=" ++ show b ++ ")"
+  (PseudoInstruction pos s)             -> hex32 pos ++ "                          " ++ s
+  (Instruction op opsize [] pos bytes)  -> showPosBytes pos bytes ++ showOp op
+  (Instruction op opsize ops pos bytes) -> showPosBytes pos bytes ++ enlarge (showOp op) 6 ++ " " ++ concat (intersperse "," (map (showIntelOps opsize) ops))
 
 -- | Show an instruction in AT&T style.
 
 showAtt :: Instruction -> [Char]
-showAtt (BadInstruction b desc pos bytes) =
-    showPosBytes pos bytes ++
-       "(" ++ desc ++ ", byte=" ++ show b ++ ")"
-showAtt (PseudoInstruction pos s) =
-    hex32 pos ++ "                          " ++ s
-showAtt (Instruction op opsize [] pos bytes) =
-    showPosBytes pos bytes ++
-       showOp op ++ showInstrSuffix [] opsize
-showAtt (Instruction op opsize ops pos bytes) =
-    showPosBytes pos bytes ++
-       enlarge (showOp op ++ showInstrSuffix ops opsize) 6 ++ " " ++
-       concat (intersperse "," (map showAttOps (reverse ops)))
+showAtt = \case
+  (BadInstruction b desc pos bytes)     -> showPosBytes pos bytes ++ "(" ++ desc ++ ", byte=" ++ show b ++ ")"
+  (PseudoInstruction pos s)             -> hex32 pos ++ "                          " ++ s
+  (Instruction op opsize [] pos bytes)  -> showPosBytes pos bytes ++ showOp op ++ showInstrSuffix [] opsize
+  (Instruction op opsize ops pos bytes) -> showPosBytes pos bytes ++ enlarge (showOp op ++ showInstrSuffix ops opsize) 6 ++ " " ++ concat (intersperse "," (map showAttOps (reverse ops)))
 
-showPosBytes pos bytes =
-    hex32 pos ++ "  " ++
-      enlarge (concat (intersperse " " (map hex8 bytes))) 30
+showPosBytes pos bytes = hex32 pos ++ "  " ++ enlarge (concat (intersperse " " (map hex8 bytes))) 30
 
 enlarge s i = s ++ take (i - length s) (repeat ' ')
 
@@ -154,23 +134,24 @@ opSizeSuffix OPF32  = "s"
 opSizeSuffix OPF64  = "l"
 opSizeSuffix OPF80  = "t"
 
-showInstrSuffix [] sz                                     = opSizeSuffix sz
-showInstrSuffix ((OpImm _) : os) s                        = showInstrSuffix os s
---showInstrSuffix ((OpReg _ _) : []) s                      = ""
-showInstrSuffix ((OpReg _ _) : os) s                      = showInstrSuffix os OPNONE
-showInstrSuffix ((OpFPReg _) : os) s                      = showInstrSuffix os s
-showInstrSuffix ((OpAddr _ OPNONE) : os) s                = showInstrSuffix os s
-showInstrSuffix ((OpAddr _ sz) : os) s                    = opSizeSuffix sz
-showInstrSuffix ((OpInd _ OPNONE) : os) s                 = showInstrSuffix os s
-showInstrSuffix ((OpInd _ sz) : os) s                     = opSizeSuffix sz
-showInstrSuffix ((OpIndDisp _ _ OPNONE) : os) s           = showInstrSuffix os s
-showInstrSuffix ((OpIndDisp _ _ sz) : os) s               = opSizeSuffix sz
-showInstrSuffix ((OpBaseIndex _ _ _ OPNONE) : os) s       = showInstrSuffix os s
-showInstrSuffix ((OpBaseIndex _ _ _ sz) : os) s           = opSizeSuffix sz
-showInstrSuffix ((OpIndexDisp _ _ _ OPNONE) : os) s       = showInstrSuffix os s
-showInstrSuffix ((OpIndexDisp _ _ _ sz) : os) s           = opSizeSuffix sz
-showInstrSuffix ((OpBaseIndexDisp _ _ _ _ OPNONE) : os) s = showInstrSuffix os s
-showInstrSuffix ((OpBaseIndexDisp _ _ _ _ sz) : os) s     = opSizeSuffix sz
+showInstrSuffix q_ s = case q_ of
+  []                                      -> opSizeSuffix s
+  ((OpImm _) : os)                        -> showInstrSuffix os s
+-- ((OpReg _ _) : [])                      -> ""
+  ((OpReg _ _) : os)                      -> showInstrSuffix os OPNONE
+  ((OpFPReg _) : os)                      -> showInstrSuffix os s
+  ((OpAddr _ OPNONE) : os)                -> showInstrSuffix os s
+  ((OpAddr _ sz) : os)                    -> opSizeSuffix sz
+  ((OpInd _ OPNONE) : os)                 -> showInstrSuffix os s
+  ((OpInd _ sz) : os)                     -> opSizeSuffix sz
+  ((OpIndDisp _ _ OPNONE) : os)           -> showInstrSuffix os s
+  ((OpIndDisp _ _ sz) : os)               -> opSizeSuffix sz
+  ((OpBaseIndex _ _ _ OPNONE) : os)       -> showInstrSuffix os s
+  ((OpBaseIndex _ _ _ sz) : os)           -> opSizeSuffix sz
+  ((OpIndexDisp _ _ _ OPNONE) : os)       -> showInstrSuffix os s
+  ((OpIndexDisp _ _ _ sz) : os)           -> opSizeSuffix sz
+  ((OpBaseIndexDisp _ _ _ _ OPNONE) : os) -> showInstrSuffix os s
+  ((OpBaseIndexDisp _ _ _ _ sz) : os)     -> opSizeSuffix sz
 
 -- showInstrOperandSize ops OPNONE | noRegop ops = ""
 -- showInstrOperandSize ops OP8 | noRegop ops = "b"
