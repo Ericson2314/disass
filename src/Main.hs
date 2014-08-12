@@ -65,10 +65,11 @@ convertLine x = fromMaybe (error $ "bad shit: " ++ T.unpack x) $ do
   return $ thread instr $
     [ \instr -> do (before, _, after, [g1, g2]) <- instr >< "([0-9a-z]*) *<(.*)>$"
 		   return $ T.concat [before, g2, " ;RAW: ", g1, after]
-    , \instr -> do (before, _, after, [g]) <- instr >< "(.s:)\\["
-		   return $ T.concat [before, "[" , g, after]
+    , let f instr = do (before, _, after, [g]) <- instr >< "(.s:)\\["
+                       return $ T.concat [before, "[" , g, after]
+      in f >=> f -- need to do again if successful
     , \instr -> return $ T.replace " PTR" "" instr
-    , \instr -> do (before, _, after, [op]) <- instr >< "(lods|movs|stos|scas|ins|outs)"
+    , \instr -> do (before, _, after, [op]) <- instr >< "(lods|movs|stos|scas|cmps|ins|outs)"
 		   (_, _, _, [size])        <- instr >< "(BYTE|DWORD|WORD)"
 		   let suffix = case T.unpack size of
 			 "BYTE"  -> 'b'
