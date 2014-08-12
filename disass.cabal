@@ -1,15 +1,16 @@
-name:                 disassembler
-version:              0.2.0.0
+name:                 disass
+version:              0.3.0.0
 license:              BSD3
 license-file:         LICENSE
 category:             Development, Disassembler
 author:               Martin Grabmueller <martin@grabmueller.de>
   ,                   Dirk Kleeblatt <klee@cs.tu-berlin.de>
-maintainer:           Martin Grabmueller <martin@grabmueller.de>
+  ,                   John Ericson <Ericson2314@Yahoo.com>
+--maintainer:           Martin Grabmueller <martin@grabmueller.de>
 stability:            experimental
-synopsis:             Disassembler for x86-32 and x86-64 machine code
-description:          Disassembler for x86-32 and x86-64 machine code
-cabal-version:        >= 1.2
+synopsis:             A sound disassembler for x86-32 and x86-64 machine code
+description:          A sound disassembler for x86-32 and x86-64 machine code
+cabal-version:        >= 1.10
 build-type:           Simple
 
 library
