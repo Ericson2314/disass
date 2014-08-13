@@ -16,53 +16,64 @@ import           Language.Assembly.X86.Instruction
 
 import           Text.Parsec hiding (many, (<|>))
 
+
+
 -- | This is the state maintained by the disassembler.
 
-data PState = PState { defaultBitMode :: OperandSize,
-                       operandBitMode :: OperandSize,
-                       addressBitMode :: OperandSize,
-                       in64BitMode :: Bool,
-                       prefixes :: [Word8],
-                       startAddr :: Word32
-                      }
+data PState = PState { defaultBitMode :: OperandSize
+                     , operandBitMode :: OperandSize
+                     , addressBitMode :: OperandSize
+                     , in64BitMode    :: Bool
+                     , prefixes       :: [Word8]
+                     , startAddr      :: Word32
+                     }
 
-data Config = Config {confDefaultBitMode :: OperandSize,
-                      confOperandBitMode :: OperandSize,
-                      confAddressBitMode :: OperandSize,
-                      confIn64BitMode        :: Bool,
-                      confStartAddr          :: Word32}
+data Config = Config { confDefaultBitMode :: OperandSize
+                     , confOperandBitMode :: OperandSize
+                     , confAddressBitMode :: OperandSize
+                     , confIn64BitMode    :: Bool
+                     , confStartAddr      :: Word32
+                     }
 
-defaultConfig :: Config
-defaultConfig = Config{ confDefaultBitMode = BIT32,
-                        confOperandBitMode = BIT32,
-                        confAddressBitMode = BIT32,
-                        confIn64BitMode = False,
-                        confStartAddr = 0}
-
-configToState :: Config -> PState
-configToState (Config defBitMode opMode addrMode in64 confStartAddr) =
-    defaultState{defaultBitMode = defBitMode,
-                 operandBitMode = opMode,
-                 addressBitMode = addrMode,
-                 in64BitMode = in64,
-                 startAddr = confStartAddr}
 
 -- | Default state to be used if no other is given to the disassembly
 -- routines.x
-defaultState = PState { defaultBitMode = BIT32,
-                  operandBitMode = BIT32,
-                  addressBitMode = BIT32,
-                  in64BitMode = False,
-                  prefixes = [],
-                  startAddr = 0}
+
+defaultState :: PState
+defaultState = PState { defaultBitMode = BIT32
+                      , operandBitMode = BIT32
+                      , addressBitMode = BIT32
+                      , in64BitMode    = False
+                      , prefixes       = []
+                      , startAddr      = 0
+                      }
+
+defaultConfig :: Config
+defaultConfig = Config { confDefaultBitMode = BIT32
+                       , confOperandBitMode = BIT32
+                       , confAddressBitMode = BIT32
+                       , confIn64BitMode    = False
+                       , confStartAddr      = 0
+                       }
+
+configToState :: Config -> PState
+configToState (Config defBitMode opMode addrMode in64 confStartAddr) =
+  defaultState { defaultBitMode = defBitMode
+               , operandBitMode = opMode
+               , addressBitMode = addrMode
+               , in64BitMode    = in64
+               , startAddr      = confStartAddr
+               }
 
 parseInstructions :: Monad m => PState -> [Word8] -> m (Either ParseError [Instruction])
 parseInstructions st l = runParserT instructionSequence st "memory block" l
+
 
 -- | Parse a possibly empty sequence of instructions.
 
 instructionSequence :: (Stream s m Word8, Monad m) => ParsecT s PState m [Instruction]
 instructionSequence = many instruction
+
 
 -- | Parse a single instruction.  The result is either a valid instruction
 -- or an indicator that there starts no valid instruction at the current
@@ -108,6 +119,7 @@ rex_R = 0x4
 rex_W :: Word8
 rex_W = 0x8
 
+
 -- | Return True if the given REX prefix bit appears in the list of current
 -- instruction prefixes, False otherwise.
 
@@ -117,6 +129,7 @@ hasREX rex st =
        case rexs of
          (r : _) -> if r .&. rex == rex then True else False
          _ -> False
+
 
 -- | Return True if the given prefix appears in the list of current
 -- instruction prefixes, False otherwise.
@@ -128,6 +141,7 @@ addPrefix :: (Stream s m Word8, Monad m) => Word8 -> ParsecT s PState m ()
 addPrefix b = do
     st <- getState
     setState st{prefixes = b : prefixes st}
+
 
 -- | Parse a single prefix byte and remember it in the parser state.  If in
 -- 64-bit mode, accept REX prefixes.
