@@ -451,533 +451,532 @@ anyWordP = do
         w1 :: Word64 <- fromIntegral <$> anyWord16
         return (w0 .|. (w1 `shiftL` 32))
 
-oneByteOpCodeMap
-  :: (Stream s m Word8, Monad m)
-  => Map Word8 (Word8 -> ParsecT s PState m Instr)
+
+oneByteOpCodeMap :: (Stream s m Word8, Monad m)
+                 => Map Word8 (Word8 -> ParsecT s PState m Instr)
 oneByteOpCodeMap = M.fromList
-    [(0x00, parseALU ADD),
-     (0x01, parseALU ADD),
-     (0x02, parseALU ADD),
-     (0x03, parseALU ADD),
-     (0x04, parseALU ADD),
-     (0x05, parseALU ADD),
-     (0x06, invalidIn64BitMode (parsePUSHSeg "es")),
-     (0x07, invalidIn64BitMode (parsePOPSeg "es")),
-     (0x08, parseALU OR),
-     (0x09, parseALU OR),
-     (0x0a, parseALU OR),
-     (0x0b, parseALU OR),
-     (0x0c, parseALU OR),
-     (0x0d, parseALU OR),
-     (0x0e, invalidIn64BitMode (parsePUSHSeg "cs")),
-     (0x0f, twoByteEscape),
+  [ (0x00, parseALU ADD)
+  , (0x01, parseALU ADD)
+  , (0x02, parseALU ADD)
+  , (0x03, parseALU ADD)
+  , (0x04, parseALU ADD)
+  , (0x05, parseALU ADD)
+  , (0x06, invalidIn64BitMode (parsePUSHSeg "es"))
+  , (0x07, invalidIn64BitMode (parsePOPSeg "es"))
+  , (0x08, parseALU OR)
+  , (0x09, parseALU OR)
+  , (0x0a, parseALU OR)
+  , (0x0b, parseALU OR)
+  , (0x0c, parseALU OR)
+  , (0x0d, parseALU OR)
+  , (0x0e, invalidIn64BitMode (parsePUSHSeg "cs"))
+  , (0x0f, twoByteEscape)
 
-     (0x10, parseALU ADC),
-     (0x11, parseALU ADC),
-     (0x12, parseALU ADC),
-     (0x13, parseALU ADC),
-     (0x14, parseALU ADC),
-     (0x15, parseALU ADC),
-     (0x16, invalidIn64BitMode (parsePUSHSeg "ss")),
-     (0x17, invalidIn64BitMode (parsePOPSeg "ss")),
-     (0x18, parseALU SBB),
-     (0x19, parseALU SBB),
-     (0x1a, parseALU SBB),
-     (0x1b, parseALU SBB),
-     (0x1c, parseALU SBB),
-     (0x1d, parseALU SBB),
-     (0x1e, invalidIn64BitMode (parsePUSHSeg "ds")),
-     (0x1f, invalidIn64BitMode (parsePOPSeg "ds")),
+  , (0x10, parseALU ADC)
+  , (0x11, parseALU ADC)
+  , (0x12, parseALU ADC)
+  , (0x13, parseALU ADC)
+  , (0x14, parseALU ADC)
+  , (0x15, parseALU ADC)
+  , (0x16, invalidIn64BitMode (parsePUSHSeg "ss"))
+  , (0x17, invalidIn64BitMode (parsePOPSeg "ss"))
+  , (0x18, parseALU SBB)
+  , (0x19, parseALU SBB)
+  , (0x1a, parseALU SBB)
+  , (0x1b, parseALU SBB)
+  , (0x1c, parseALU SBB)
+  , (0x1d, parseALU SBB)
+  , (0x1e, invalidIn64BitMode (parsePUSHSeg "ds"))
+  , (0x1f, invalidIn64BitMode (parsePOPSeg "ds"))
 
-     (0x20, parseALU AND),
-     (0x21, parseALU AND),
-     (0x22, parseALU AND),
-     (0x23, parseALU AND),
-     (0x24, parseALU AND),
-     (0x25, parseALU AND),
-     (0x26, parseInvalidPrefix), -- ES segment override prefix
-     (0x27, invalidIn64BitMode (parseGeneric DAA OPNONE)),
-     (0x28, parseALU SUB),
-     (0x29, parseALU SUB),
-     (0x2a, parseALU SUB),
-     (0x2b, parseALU SUB),
-     (0x2c, parseALU SUB),
-     (0x2d, parseALU SUB),
-     (0x2e, parseInvalidPrefix), -- CS segment override prefix
-     (0x2f, invalidIn64BitMode (parseGeneric DAS OPNONE)),
+  , (0x20, parseALU AND)
+  , (0x21, parseALU AND)
+  , (0x22, parseALU AND)
+  , (0x23, parseALU AND)
+  , (0x24, parseALU AND)
+  , (0x25, parseALU AND)
+  , (0x26, parseInvalidPrefix) -- ES segment override prefix
+  , (0x27, invalidIn64BitMode (parseGeneric DAA OPNONE))
+  , (0x28, parseALU SUB)
+  , (0x29, parseALU SUB)
+  , (0x2a, parseALU SUB)
+  , (0x2b, parseALU SUB)
+  , (0x2c, parseALU SUB)
+  , (0x2d, parseALU SUB)
+  , (0x2e, parseInvalidPrefix) -- CS segment override prefix
+  , (0x2f, invalidIn64BitMode (parseGeneric DAS OPNONE))
 
-     (0x30, parseALU XOR),
-     (0x31, parseALU XOR),
-     (0x32, parseALU XOR),
-     (0x33, parseALU XOR),
-     (0x34, parseALU XOR),
-     (0x35, parseALU XOR),
-     (0x36, parseInvalidPrefix), -- SS segment override prefix
-     (0x37, invalidIn64BitMode (parseGeneric AAA OPNONE)),
-     (0x38, parseALU CMP),
-     (0x39, parseALU CMP),
-     (0x3a, parseALU CMP),
-     (0x3b, parseALU CMP),
-     (0x3c, parseALU CMP),
-     (0x3d, parseALU CMP),
-     (0x3e, parseInvalidPrefix), -- DS segment override prefix
-     (0x3f, invalidIn64BitMode (parseGeneric AAS OPNONE)),
+  , (0x30, parseALU XOR)
+  , (0x31, parseALU XOR)
+  , (0x32, parseALU XOR)
+  , (0x33, parseALU XOR)
+  , (0x34, parseALU XOR)
+  , (0x35, parseALU XOR)
+  , (0x36, parseInvalidPrefix) -- SS segment override prefix
+  , (0x37, invalidIn64BitMode (parseGeneric AAA OPNONE))
+  , (0x38, parseALU CMP)
+  , (0x39, parseALU CMP)
+  , (0x3a, parseALU CMP)
+  , (0x3b, parseALU CMP)
+  , (0x3c, parseALU CMP)
+  , (0x3d, parseALU CMP)
+  , (0x3e, parseInvalidPrefix) -- DS segment override prefix
+  , (0x3f, invalidIn64BitMode (parseGeneric AAS OPNONE))
 
-     (0x40, invalidIn64BitMode parseINC), -- REX Prefix in 64-bit mode
-     (0x41, invalidIn64BitMode parseINC), -- ...
-     (0x42, invalidIn64BitMode parseINC),
-     (0x43, invalidIn64BitMode parseINC),
-     (0x44, invalidIn64BitMode parseINC),
-     (0x45, invalidIn64BitMode parseINC),
-     (0x46, invalidIn64BitMode parseINC),
-     (0x47, invalidIn64BitMode parseINC),
-     (0x48, invalidIn64BitMode parseDEC),
-     (0x49, invalidIn64BitMode parseDEC),
-     (0x4a, invalidIn64BitMode parseDEC),
-     (0x4b, invalidIn64BitMode parseDEC),
-     (0x4c, invalidIn64BitMode parseDEC),
-     (0x4d, invalidIn64BitMode parseDEC),
-     (0x4e, invalidIn64BitMode parseDEC),
-     (0x4f, invalidIn64BitMode parseDEC),
+  , (0x40, invalidIn64BitMode parseINC) -- REX Prefix in 64-bit mode
+  , (0x41, invalidIn64BitMode parseINC) -- ...
+  , (0x42, invalidIn64BitMode parseINC)
+  , (0x43, invalidIn64BitMode parseINC)
+  , (0x44, invalidIn64BitMode parseINC)
+  , (0x45, invalidIn64BitMode parseINC)
+  , (0x46, invalidIn64BitMode parseINC)
+  , (0x47, invalidIn64BitMode parseINC)
+  , (0x48, invalidIn64BitMode parseDEC)
+  , (0x49, invalidIn64BitMode parseDEC)
+  , (0x4a, invalidIn64BitMode parseDEC)
+  , (0x4b, invalidIn64BitMode parseDEC)
+  , (0x4c, invalidIn64BitMode parseDEC)
+  , (0x4d, invalidIn64BitMode parseDEC)
+  , (0x4e, invalidIn64BitMode parseDEC)
+  , (0x4f, invalidIn64BitMode parseDEC)
 
-     (0x50, parsePUSH),
-     (0x51, parsePUSH),
-     (0x52, parsePUSH),
-     (0x53, parsePUSH),
-     (0x54, parsePUSH),
-     (0x55, parsePUSH),
-     (0x56, parsePUSH),
-     (0x57, parsePUSH),
-     (0x58, parsePOP),
-     (0x59, parsePOP),
-     (0x5a, parsePOP),
-     (0x5b, parsePOP),
-     (0x5c, parsePOP),
-     (0x5d, parsePOP),
-     (0x5e, parsePOP),
-     (0x5f, parsePOP),
+  , (0x50, parsePUSH)
+  , (0x51, parsePUSH)
+  , (0x52, parsePUSH)
+  , (0x53, parsePUSH)
+  , (0x54, parsePUSH)
+  , (0x55, parsePUSH)
+  , (0x56, parsePUSH)
+  , (0x57, parsePUSH)
+  , (0x58, parsePOP)
+  , (0x59, parsePOP)
+  , (0x5a, parsePOP)
+  , (0x5b, parsePOP)
+  , (0x5c, parsePOP)
+  , (0x5d, parsePOP)
+  , (0x5e, parsePOP)
+  , (0x5f, parsePOP)
 
-     (0x60, invalidIn64BitMode parsePUSHA),
-     (0x61, invalidIn64BitMode parsePOPA),
-     (0x62, invalidIn64BitMode parseBOUND),
-     (0x63, choose64BitMode parseARPL parseMOVSXD), -- MOVSXD in 64-bit mode
-     (0x64, parseInvalidPrefix), -- FS segment override prefix
-     (0x65, parseInvalidPrefix), -- GS segment override prefix
-     (0x66, parseInvalidPrefix), -- operand-size prefix
-     (0x67, parseInvalidPrefix), -- address-size prefix
-     (0x68, parsePUSHImm),
-     (0x69, parseIMUL),
-     (0x6a, parsePUSHImm),
-     (0x6b, parseIMUL),
-     (0x6c, parseINS),
-     (0x6d, parseINS),
-     (0x6e, parseOUTS),
-     (0x6f, parseOUTS),
+  , (0x60, invalidIn64BitMode parsePUSHA)
+  , (0x61, invalidIn64BitMode parsePOPA)
+  , (0x62, invalidIn64BitMode parseBOUND)
+  , (0x63, choose64BitMode parseARPL parseMOVSXD) -- MOVSXD in 64-bit mode
+  , (0x64, parseInvalidPrefix) -- FS segment override prefix
+  , (0x65, parseInvalidPrefix) -- GS segment override prefix
+  , (0x66, parseInvalidPrefix) -- operand-size prefix
+  , (0x67, parseInvalidPrefix) -- address-size prefix
+  , (0x68, parsePUSHImm)
+  , (0x69, parseIMUL)
+  , (0x6a, parsePUSHImm)
+  , (0x6b, parseIMUL)
+  , (0x6c, parseINS)
+  , (0x6d, parseINS)
+  , (0x6e, parseOUTS)
+  , (0x6f, parseOUTS)
 
-     (0x70, parseJccShort),
-     (0x71, parseJccShort),
-     (0x72, parseJccShort),
-     (0x73, parseJccShort),
-     (0x74, parseJccShort),
-     (0x75, parseJccShort),
-     (0x76, parseJccShort),
-     (0x77, parseJccShort),
-     (0x78, parseJccShort),
-     (0x79, parseJccShort),
-     (0x7a, parseJccShort),
-     (0x7b, parseJccShort),
-     (0x7c, parseJccShort),
-     (0x7d, parseJccShort),
-     (0x7e, parseJccShort),
-     (0x7f, parseJccShort),
+  , (0x70, parseJccShort)
+  , (0x71, parseJccShort)
+  , (0x72, parseJccShort)
+  , (0x73, parseJccShort)
+  , (0x74, parseJccShort)
+  , (0x75, parseJccShort)
+  , (0x76, parseJccShort)
+  , (0x77, parseJccShort)
+  , (0x78, parseJccShort)
+  , (0x79, parseJccShort)
+  , (0x7a, parseJccShort)
+  , (0x7b, parseJccShort)
+  , (0x7c, parseJccShort)
+  , (0x7d, parseJccShort)
+  , (0x7e, parseJccShort)
+  , (0x7f, parseJccShort)
 
-     (0x80, parseGrp1),
-     (0x81, parseGrp1),
-     (0x82, invalidIn64BitMode parseGrp1),
-     (0x83, parseGrp1),
-     (0x84, parseTEST),
-     (0x85, parseTEST),
-     (0x86, parseXCHG),
-     (0x87, parseXCHG),
-     (0x88, parseMOV),
-     (0x89, parseMOV),
-     (0x8a, parseMOV),
-     (0x8b, parseMOV),
-     (0x8c, parseMOV),
-     (0x8d, parseLEA),
-     (0x8e, parseMOV),
-     (0x8f, parseGrp1A),
+  , (0x80, parseGrp1)
+  , (0x81, parseGrp1)
+  , (0x82, invalidIn64BitMode parseGrp1)
+  , (0x83, parseGrp1)
+  , (0x84, parseTEST)
+  , (0x85, parseTEST)
+  , (0x86, parseXCHG)
+  , (0x87, parseXCHG)
+  , (0x88, parseMOV)
+  , (0x89, parseMOV)
+  , (0x8a, parseMOV)
+  , (0x8b, parseMOV)
+  , (0x8c, parseMOV)
+  , (0x8d, parseLEA)
+  , (0x8e, parseMOV)
+  , (0x8f, parseGrp1A)
 
-     (0x90, parse0x90), -- NOP, PAUSE(F3), XCHG r8,rAX
-     (0x91, parseXCHGReg),
-     (0x92, parseXCHGReg),
-     (0x93, parseXCHGReg),
-     (0x94, parseXCHGReg),
-     (0x95, parseXCHGReg),
-     (0x96, parseXCHGReg),
-     (0x97, parseXCHGReg),
-     (0x98, parseCBW_CWDE_CDQE),
-     (0x99, parseCWD_CDQ_CQO),
-     (0x9a, invalidIn64BitMode parseCALLF),
-     (0x9b, parseGeneric WAIT OPNONE),
-     (0x9c, parsePUSHF),
-     (0x9d, parsePOPF),
-     (0x9e, parseGeneric SAHF OPNONE),
-     (0x9f, parseGeneric LAHF OPNONE),
+  , (0x90, parse0x90) -- NOP, PAUSE(F3), XCHG r8,rAX
+  , (0x91, parseXCHGReg)
+  , (0x92, parseXCHGReg)
+  , (0x93, parseXCHGReg)
+  , (0x94, parseXCHGReg)
+  , (0x95, parseXCHGReg)
+  , (0x96, parseXCHGReg)
+  , (0x97, parseXCHGReg)
+  , (0x98, parseCBW_CWDE_CDQE)
+  , (0x99, parseCWD_CDQ_CQO)
+  , (0x9a, invalidIn64BitMode parseCALLF)
+  , (0x9b, parseGeneric WAIT OPNONE)
+  , (0x9c, parsePUSHF)
+  , (0x9d, parsePOPF)
+  , (0x9e, parseGeneric SAHF OPNONE)
+  , (0x9f, parseGeneric LAHF OPNONE)
 
-     (0xa0, parseMOVImm),
-     (0xa1, parseMOVImm),
-     (0xa2, parseMOVImm),
-     (0xa3, parseMOVImm),
-     (0xa4, parseMOVS),
-     (0xa5, parseMOVS),
-     (0xa6, parseCMPS),
-     (0xa7, parseCMPS),
-     (0xa8, parseTESTImm),
-     (0xa9, parseTESTImm),
-     (0xaa, parseSTOS),
-     (0xab, parseSTOS),
-     (0xac, parseLODS),
-     (0xad, parseLODS),
-     (0xae, parseSCAS),
-     (0xaf, parseSCAS),
+  , (0xa0, parseMOVImm)
+  , (0xa1, parseMOVImm)
+  , (0xa2, parseMOVImm)
+  , (0xa3, parseMOVImm)
+  , (0xa4, parseMOVS)
+  , (0xa5, parseMOVS)
+  , (0xa6, parseCMPS)
+  , (0xa7, parseCMPS)
+  , (0xa8, parseTESTImm)
+  , (0xa9, parseTESTImm)
+  , (0xaa, parseSTOS)
+  , (0xab, parseSTOS)
+  , (0xac, parseLODS)
+  , (0xad, parseLODS)
+  , (0xae, parseSCAS)
+  , (0xaf, parseSCAS)
 
-     (0xb0, parseMOVImmByteToByteReg),
-     (0xb1, parseMOVImmByteToByteReg),
-     (0xb2, parseMOVImmByteToByteReg),
-     (0xb3, parseMOVImmByteToByteReg),
-     (0xb4, parseMOVImmByteToByteReg),
-     (0xb5, parseMOVImmByteToByteReg),
-     (0xb6, parseMOVImmByteToByteReg),
-     (0xb7, parseMOVImmByteToByteReg),
-     (0xb8, parseMOVImmToReg),
-     (0xb9, parseMOVImmToReg),
-     (0xba, parseMOVImmToReg),
-     (0xbb, parseMOVImmToReg),
-     (0xbc, parseMOVImmToReg),
-     (0xbd, parseMOVImmToReg),
-     (0xbe, parseMOVImmToReg),
-     (0xbf, parseMOVImmToReg),
+  , (0xb0, parseMOVImmByteToByteReg)
+  , (0xb1, parseMOVImmByteToByteReg)
+  , (0xb2, parseMOVImmByteToByteReg)
+  , (0xb3, parseMOVImmByteToByteReg)
+  , (0xb4, parseMOVImmByteToByteReg)
+  , (0xb5, parseMOVImmByteToByteReg)
+  , (0xb6, parseMOVImmByteToByteReg)
+  , (0xb7, parseMOVImmByteToByteReg)
+  , (0xb8, parseMOVImmToReg)
+  , (0xb9, parseMOVImmToReg)
+  , (0xba, parseMOVImmToReg)
+  , (0xbb, parseMOVImmToReg)
+  , (0xbc, parseMOVImmToReg)
+  , (0xbd, parseMOVImmToReg)
+  , (0xbe, parseMOVImmToReg)
+  , (0xbf, parseMOVImmToReg)
 
-     (0xc0, parseGrp2),
-     (0xc1, parseGrp2),
-     (0xc2, parseRETN),
-     (0xc3, parseRETN),
-     (0xc4, invalidIn64BitMode (parseLoadSegmentRegister LES)),
-     (0xc5, invalidIn64BitMode (parseLoadSegmentRegister LDS)),
-     (0xc6, parseGrp11),
-     (0xc7, parseGrp11),
-     (0xc8, parseENTER),
-     (0xc9, parseGeneric LEAVE OPNONE),
-     (0xca, parseGenericIw RETF),
-     (0xcb, parseGeneric RETF OPNONE),
-     (0xcc, parseGeneric INT3 OPNONE),
-     (0xcd, parseGenericIb INT),
-     (0xce, parseGeneric INTO OPNONE),
-     (0xcf, parseGeneric IRET OPNONE),
+  , (0xc0, parseGrp2)
+  , (0xc1, parseGrp2)
+  , (0xc2, parseRETN)
+  , (0xc3, parseRETN)
+  , (0xc4, invalidIn64BitMode (parseLoadSegmentRegister LES))
+  , (0xc5, invalidIn64BitMode (parseLoadSegmentRegister LDS))
+  , (0xc6, parseGrp11)
+  , (0xc7, parseGrp11)
+  , (0xc8, parseENTER)
+  , (0xc9, parseGeneric LEAVE OPNONE)
+  , (0xca, parseGenericIw RETF)
+  , (0xcb, parseGeneric RETF OPNONE)
+  , (0xcc, parseGeneric INT3 OPNONE)
+  , (0xcd, parseGenericIb INT)
+  , (0xce, parseGeneric INTO OPNONE)
+  , (0xcf, parseGeneric IRET OPNONE)
 
-     (0xd0, parseGrp2),
-     (0xd1, parseGrp2),
-     (0xd2, parseGrp2),
-     (0xd3, parseGrp2),
-     (0xd4, parseGenericIb AAM),
-     (0xd5, parseGenericIb AAD),
-     (0xd6, parseReserved), -- reserved
-     (0xd7, parseGeneric XLAT OPNONE),
-     (0xd8, parseESC),
-     (0xd9, parseESC),
-     (0xda, parseESC),
-     (0xdb, parseESC),
-     (0xdc, parseESC),
-     (0xdd, parseESC),
-     (0xde, parseESC),
-     (0xdf, parseESC),
+  , (0xd0, parseGrp2)
+  , (0xd1, parseGrp2)
+  , (0xd2, parseGrp2)
+  , (0xd3, parseGrp2)
+  , (0xd4, parseGenericIb AAM)
+  , (0xd5, parseGenericIb AAD)
+  , (0xd6, parseReserved) -- reserved
+  , (0xd7, parseGeneric XLAT OPNONE)
+  , (0xd8, parseESC)
+  , (0xd9, parseESC)
+  , (0xda, parseESC)
+  , (0xdb, parseESC)
+  , (0xdc, parseESC)
+  , (0xdd, parseESC)
+  , (0xde, parseESC)
+  , (0xdf, parseESC)
 
-     (0xe0, parseGenericJb LOOPNE),
-     (0xe1, parseGenericJb LOOPE),
-     (0xe2, parseGenericJb LOOP),
-     (0xe3, parseGenericJb JCXZ), -- depends on bit mode
-     (0xe4, parseINImm),
-     (0xe5, parseINImm),
-     (0xe6, parseOUTImm),
-     (0xe7, parseOUTImm),
-     (0xe8, parseGenericJz CALL),
-     (0xe9, parseGenericJz JMP),
-     (0xea, parseJMPF),
-     (0xeb, parseGenericJb JMP),
-     (0xec, parseIN),
-     (0xed, parseIN),
-     (0xee, parseOUT),
-     (0xef, parseOUT),
+  , (0xe0, parseGenericJb LOOPNE)
+  , (0xe1, parseGenericJb LOOPE)
+  , (0xe2, parseGenericJb LOOP)
+  , (0xe3, parseGenericJb JCXZ) -- depends on bit mode
+  , (0xe4, parseINImm)
+  , (0xe5, parseINImm)
+  , (0xe6, parseOUTImm)
+  , (0xe7, parseOUTImm)
+  , (0xe8, parseGenericJz CALL)
+  , (0xe9, parseGenericJz JMP)
+  , (0xea, parseJMPF)
+  , (0xeb, parseGenericJb JMP)
+  , (0xec, parseIN)
+  , (0xed, parseIN)
+  , (0xee, parseOUT)
+  , (0xef, parseOUT)
 
-     (0xf0, parseInvalidPrefix), -- LOCK prefix
-     (0xf1, parseReserved), -- reserved
-     (0xf2, parseInvalidPrefix), -- REPNE prefix
-     (0xf3, parseInvalidPrefix), -- REP/REPQ prefix
-     (0xf4, parseGeneric HLT OPNONE),
-     (0xf5, parseGeneric CMC OPNONE),
-     (0xf6, parseGrp3),
-     (0xf7, parseGrp3),
-     (0xf8, parseGeneric CLC OPNONE),
-     (0xf9, parseGeneric STC OPNONE),
-     (0xfa, parseGeneric CLI OPNONE),
-     (0xfb, parseGeneric STI OPNONE),
-     (0xfc, parseGeneric CLD OPNONE),
-     (0xfd, parseGeneric STD OPNONE),
-     (0xfe, parseGrp4),
-     (0xff, parseGrp5)
-     ]
+  , (0xf0, parseInvalidPrefix) -- LOCK prefix
+  , (0xf1, parseReserved) -- reserved
+  , (0xf2, parseInvalidPrefix) -- REPNE prefix
+  , (0xf3, parseInvalidPrefix) -- REP/REPQ prefix
+  , (0xf4, parseGeneric HLT OPNONE)
+  , (0xf5, parseGeneric CMC OPNONE)
+  , (0xf6, parseGrp3)
+  , (0xf7, parseGrp3)
+  , (0xf8, parseGeneric CLC OPNONE)
+  , (0xf9, parseGeneric STC OPNONE)
+  , (0xfa, parseGeneric CLI OPNONE)
+  , (0xfb, parseGeneric STI OPNONE)
+  , (0xfc, parseGeneric CLD OPNONE)
+  , (0xfd, parseGeneric STD OPNONE)
+  , (0xfe, parseGrp4)
+  , (0xff, parseGrp5)
+  ]
 
-parseInvalidPrefix :: Monad m => Word8 -> m Instr
-parseInvalidPrefix b = do
-  return $ Bad b "invalid prefix"
+
+parseInvalidPrefix :: (Stream s m Word8, Monad m) => Word8 -> ParsecT s PState m Instr
+parseInvalidPrefix b = return $ Bad b "invalid prefix"
+
 
 parseInvalidOpcode :: (Stream s m Word8, Monad m) => Word8 -> ParsecT s PState m Instr
 parseInvalidOpcode b = return $ Bad b "invalid opcode"
 
-parseReserved b = do
-  return $ Bad b "reserved opcode"
 
-parseUndefined :: (Show a, Monad m) => a -> Word8 -> m Instr
-parseUndefined name b = do
-  return $ Bad b ("undefined opcode: " ++ show name)
+parseReserved :: (Stream s m Word8, Monad m) => Word8 -> ParsecT s PState m Instr
+parseReserved b = return $ Bad b "reserved opcode"
 
-parseUnimplemented :: Monad m => Word8 -> m Instr
-parseUnimplemented b = do
-  return $ Bad b "not implemented yet"
+parseUndefined :: (Stream s m Word8, Monad m) => Opcode -> Word8 -> ParsecT s PState m Instr
+parseUndefined name b = return $ Bad b ("undefined opcode: " ++ show name)
+
+
+parseUnimplemented :: (Stream s m Word8, Monad m) => Word8 -> ParsecT s PState m Instr
+parseUnimplemented b = return $ Bad b "not implemented yet"
 
 invalidIn64BitMode
-  :: Monad m =>
-     (Word8 -> ParsecT s PState m Instr)
-     -> Word8 -> ParsecT s PState m Instr
+  :: (Stream s m Word8, Monad m)
+  => (Word8 -> ParsecT s PState m Instr)
+  -> (Word8 -> ParsecT s PState m Instr)
 invalidIn64BitMode p b = do
   st <- getState
   if in64BitMode st
      then return $ Bad b "invalid in 64-bit mode"
      else p b
 
+
 onlyIn64BitMode
-  :: Monad m =>
-     (Word8 -> ParsecT s PState m Instr)
-     -> Word8 -> ParsecT s PState m Instr
+  :: (Stream s m Word8, Monad m)
+  => (Word8 -> ParsecT s PState m Instr)
+  -> (Word8 -> ParsecT s PState m Instr)
 onlyIn64BitMode p b = do
   st <- getState
   if in64BitMode st
      then p b
      else return $ Bad b "only in 64-bit mode"
 
+
 choose64BitMode
-  :: Monad m =>
-     (t -> ParsecT s PState m b)
-     -> (t -> ParsecT s PState m b) -> t -> ParsecT s PState m b
+  :: (Stream s m Word8, Monad m)
+  => (t -> ParsecT s PState m r)
+  -> (t -> ParsecT s PState m r)
+  -> (t -> ParsecT s PState m r)
 choose64BitMode p32 p64 b = do
   st <- getState
   if in64BitMode st
      then p64 b
      else p32 b
 
+
 chooseOperandSize
-  :: Monad m =>
-     (t -> ParsecT s PState m b)
-     -> (t -> ParsecT s PState m b) -> t -> ParsecT s PState m b
+ :: (Stream s m Word8, Monad m)
+ => (t -> ParsecT s PState m r)
+ -> (t -> ParsecT s PState m r)
+ -> (t -> ParsecT s PState m r)
 chooseOperandSize p16 p32 b = do
   st <- getState
   case operandBitMode st of
     BIT16 -> p16 b
     BIT32 -> p32 b
 
+
 chooseAddressSize
-  :: Monad m =>
-     (t -> ParsecT s PState m b)
-     -> (t -> ParsecT s PState m b) -> t -> ParsecT s PState m b
+ :: (Stream s m Word8, Monad m)
+ => (t -> ParsecT s PState m r)
+ -> (t -> ParsecT s PState m r)
+ -> (t -> ParsecT s PState m r)
 chooseAddressSize p16 p32 b = do
   st <- getState
   case addressBitMode st of
     BIT16 -> p16 b
     BIT32 -> p32 b
 
+modRM b = (b `shiftR` 6, (b `shiftR` 3) .&. 7, (b .&. 7))
+
 parseModRM :: (Stream s m Word8, Monad m) => ParsecT s PState m (Word8, Word8, Word8)
-parseModRM = do
-  b <- anyWord8
-  parseModRM' b
-parseModRM' :: (Bits t, Num t, Monad m) => t -> m (t, t, t)
-parseModRM' b = do
-  return (b `shiftR` 6, (b `shiftR` 3) .&. 7, (b .&. 7))
+parseModRM = modRM <$> anyWord8
 
 parseSIB :: (Stream s m Word8, Monad m) => ParsecT s PState m (Word8, Word8, Word8)
-parseSIB = do
-  b <- anyWord8
-  parseSIB' b
-parseSIB' :: (Bits t, Num t, Monad m) => t -> m (t, t, t)
-parseSIB' b = do
-  return (b `shiftR` 6, (b `shiftR` 3) .&. 7, (b .&. 7))
+parseSIB = modRM <$> anyWord8
 
 scaleToFactor :: (Eq a, Num a) => a -> a
-scaleToFactor 0 = 1
-scaleToFactor 1 = 2
-scaleToFactor 2 = 4
-scaleToFactor 3 = 8
+scaleToFactor = \case
+  0 -> 1
+  1 -> 2
+  2 -> 4
+  3 -> 8
 
 
 parseAddress32 :: (Stream s m Word8, Monad m)
                => InstrOperandSize -> ParsecT s PState m (Operand, Operand, Word8, Word8, Word8)
-parseAddress32 s = do
-  b <- anyWord8
-  parseAddress32' s b
+parseAddress32 s = parseAddress32' s =<< anyWord8
 
 parseAddress32' :: (Stream s m Word8, Monad m)
-                => InstrOperandSize
-                -> Word8
-                -> ParsecT s PState m (Operand, Operand, Word8, Word8, Word8)
+                => InstrOperandSize -> Word8 -> ParsecT s PState m (Operand, Operand, Word8, Word8, Word8)
 parseAddress32' opsize modrm = do
-  (mod, reg_opc, rm) <- parseModRM' modrm
+  let (mod, reg_opc, rm) = modRM modrm
   st <- getState
   let opregnames = if in64BitMode st && hasREX rex_W st
-                     then regnames64
-              else case operandBitMode st of
-                        BIT16 -> regnames16
-                        BIT32 -> regnames32
+                   then regnames64
+                   else case operandBitMode st of
+                     BIT16 -> regnames16
+                     BIT32 -> regnames32
   let addregnames = if in64BitMode st && hasREX rex_R st
-                      then regnames64
-               else case addressBitMode st of
-                        BIT16 -> regnames16
-                        BIT32 -> regnames32
-  case mod of
-    0 -> case rm of
-            4 -> do
-             (s, i, b) <- parseSIB
-             case (i, b) of
-               (4, 5) -> do
-                           disp <- anyWord32
-                           return (OpAddr (fromIntegral disp) opsize,
-                                          OpReg (opregnames !! fromIntegral reg_opc)
-                                                (fromIntegral reg_opc),
-                                          mod, reg_opc, rm)
-               (_, 5) -> do
-                           disp <- anyWord32
-                           return (OpIndexDisp (addregnames !! fromIntegral i)
-                                               (scaleToFactor (fromIntegral s))
-                                               (fromIntegral disp)
-                                               opsize,
-                                   OpReg (opregnames !! fromIntegral reg_opc)
-                                         (fromIntegral reg_opc),
-                                   mod, reg_opc, rm)
-               (4, _) -> return (OpInd (addregnames !! fromIntegral b) opsize,
-                           OpReg (opregnames !! fromIntegral reg_opc)
-                             (fromIntegral reg_opc),
-                           mod, reg_opc, rm)
-               (_ ,_) -> return (OpBaseIndex
-                              (addregnames !! fromIntegral b)
-                              (addregnames !! fromIntegral i)
-                              (scaleToFactor (fromIntegral s))
-                              opsize,
-                            OpReg (opregnames !! fromIntegral reg_opc)
-                              (fromIntegral reg_opc),
-                            mod, reg_opc, rm)
-            5 -> do
-             disp <- anyWord32
-             return (OpAddr disp opsize,
-                     OpReg (opregnames !! fromIntegral reg_opc)
-                       (fromIntegral reg_opc),
-                     mod, reg_opc, rm)
-            _ -> return (OpInd (addregnames !! fromIntegral rm) opsize,
-                  OpReg (opregnames !! fromIntegral reg_opc)
-                        (fromIntegral reg_opc),
-                  mod, reg_opc, rm)
-    1 -> case rm of
-            4 -> do
-             (s, i, b) <- parseSIB
-             disp <- anyInt8
-             case i of
-               4 -> return (OpIndDisp
-                            (addregnames !! fromIntegral b)
-                            (fromIntegral disp) opsize,
-                            OpReg (opregnames !! fromIntegral reg_opc)
-                              (fromIntegral reg_opc),
-                            mod, reg_opc, rm)
-               _ -> return (OpBaseIndexDisp
-                            (addregnames !! fromIntegral b)
-                            (addregnames !! fromIntegral i)
-                            (scaleToFactor (fromIntegral s))
-                            (fromIntegral disp)
-                            opsize,
-                            OpReg (opregnames !! fromIntegral reg_opc)
-                              (fromIntegral reg_opc),
-                            mod, reg_opc, rm)
-            _ -> do disp <- anyInt8
-                    return (OpIndDisp
-                            (addregnames !! fromIntegral rm)
-                            (fromIntegral disp)
-                            opsize,
-                            OpReg (opregnames !! fromIntegral reg_opc)
-                              (fromIntegral reg_opc),
-                            mod, reg_opc, rm)
-    2 -> case rm of
-            4 -> do
-             (s, i, b) <- parseSIB
-             disp <- anyInt32
-             case i of
-               4 -> return (OpIndDisp
-                            (addregnames !! fromIntegral b)
-                            (fromIntegral disp)
-                            opsize,
-                            OpReg (opregnames !! fromIntegral reg_opc)
-                              (fromIntegral reg_opc),
-                            mod, reg_opc, rm)
-               _ -> return (OpBaseIndexDisp
-                            (addregnames !! fromIntegral b)
-                            (addregnames !! fromIntegral i)
-                            (scaleToFactor (fromIntegral s))
-                            (fromIntegral disp)
-                            opsize,
-                            OpReg (opregnames !! fromIntegral reg_opc)
-                              (fromIntegral reg_opc),
-                            mod, reg_opc, rm)
-            _ -> do
-             disp <- anyInt32
-             return (OpIndDisp
-                     (addregnames !! fromIntegral rm)
-                     (fromIntegral disp)
-                     opsize,
-                     OpReg (opregnames !! fromIntegral reg_opc)
-                       (fromIntegral reg_opc),
-                     mod, reg_opc, rm)
-    3 -> return (OpReg (opregnames !! fromIntegral rm)
-                   (fromIntegral rm),
-                  OpReg (opregnames !! fromIntegral reg_opc)
-                    (fromIntegral reg_opc),
-                 mod, reg_opc, rm)
+                    then regnames64
+                    else case addressBitMode st of
+                      BIT16 -> regnames16
+                      BIT32 -> regnames32
+  case (mod, rm) of
+    (0, 4) -> do
+      (s, i, b) <- parseSIB
+      case (i, b) of
+        (4, 5) -> do
+          disp <- anyWord32
+          return ( OpAddr (fromIntegral disp) opsize
+                 , OpReg (opregnames !! fromIntegral reg_opc)
+                         (fromIntegral reg_opc)
+                 , mod, reg_opc, rm)
+        (_, 5) -> do
+          disp <- anyWord32
+          return ( OpIndexDisp (addregnames !! fromIntegral i)
+                               (scaleToFactor $ fromIntegral s)
+                               (fromIntegral disp)
+                               opsize
+                 , OpReg (opregnames !! fromIntegral reg_opc)
+                         (fromIntegral reg_opc)
+                 , mod, reg_opc, rm)
+        (4, _) ->
+          return ( OpInd (addregnames !! fromIntegral b) opsize
+                 , OpReg (opregnames !! fromIntegral reg_opc)
+                         (fromIntegral reg_opc)
+                 , mod, reg_opc, rm)
+        (_ ,_) ->
+          return ( OpBaseIndex (addregnames !! fromIntegral b)
+                               (addregnames !! fromIntegral i)
+                               (scaleToFactor (fromIntegral s))
+                               opsize
+                 , OpReg (opregnames !! fromIntegral reg_opc)
+                         (fromIntegral reg_opc)
+                 , mod, reg_opc, rm)
+    (0, 5) -> do
+       disp <- anyWord32
+       return ( OpAddr disp opsize
+              , OpReg (opregnames !! fromIntegral reg_opc)
+                      (fromIntegral reg_opc)
+              , mod, reg_opc, rm)
+    (0, _) ->
+      return ( OpInd (addregnames !! fromIntegral rm) opsize
+             , OpReg (opregnames !! fromIntegral reg_opc)
+                     (fromIntegral reg_opc)
+             , mod, reg_opc, rm)
+
+    (1, 4) -> do
+      (s, i, b) <- parseSIB
+      disp <- anyInt8
+      return $ case i of
+        4 -> ( OpIndDisp (addregnames !! fromIntegral b)
+                         (fromIntegral disp) opsize
+             , OpReg (opregnames !! fromIntegral reg_opc)
+                     (fromIntegral reg_opc)
+             , mod, reg_opc, rm)
+        _ -> ( OpBaseIndexDisp (addregnames !! fromIntegral b)
+                               (addregnames !! fromIntegral i)
+                               (scaleToFactor (fromIntegral s))
+                               (fromIntegral disp)
+                               opsize
+             , OpReg (opregnames !! fromIntegral reg_opc)
+                     (fromIntegral reg_opc)
+             , mod, reg_opc, rm)
+
+    (1, _) -> do
+      disp <- anyInt8
+      return ( OpIndDisp (addregnames !! fromIntegral rm)
+                         (fromIntegral disp)
+                         opsize
+             , OpReg (opregnames !! fromIntegral reg_opc)
+                     (fromIntegral reg_opc)
+             , mod, reg_opc, rm)
+
+    (2, 4) -> do
+      (s, i, b) <- parseSIB
+      disp <- anyInt32
+      return $ case i of
+        4 -> ( OpIndDisp (addregnames !! fromIntegral b)
+                         (fromIntegral disp)
+                         opsize
+             , OpReg (opregnames !! fromIntegral reg_opc)
+                     (fromIntegral reg_opc)
+             , mod, reg_opc, rm)
+        _ -> ( OpBaseIndexDisp (addregnames !! fromIntegral b)
+                               (addregnames !! fromIntegral i)
+                               (scaleToFactor (fromIntegral s))
+                               (fromIntegral disp)
+                               opsize
+             , OpReg (opregnames !! fromIntegral reg_opc)
+                     (fromIntegral reg_opc)
+             , mod, reg_opc, rm)
+    (2, _) -> do
+      disp <- anyInt32
+      return ( OpIndDisp (addregnames !! fromIntegral rm)
+                         (fromIntegral disp)
+                         opsize
+             , OpReg (opregnames !! fromIntegral reg_opc)
+                     (fromIntegral reg_opc)
+             , mod, reg_opc, rm)
+
+    (3, _) ->
+      return ( OpReg (opregnames !! fromIntegral rm)
+                     (fromIntegral rm)
+             , OpReg (opregnames !! fromIntegral reg_opc)
+                     (fromIntegral reg_opc)
+             , mod, reg_opc, rm)
+
 
 parseALU :: (Stream s m Word8, Monad m) => Opcode -> Word8 -> ParsecT s PState m Instr
 parseALU op b = do
-    opsize <- instrOperandSize
-    case b .&. 0x07 of
-      0 -> do (op1, op2, mod, reg, rm) <- parseAddress32 opsize
-              return $ Instr op OP8 [op1,
-                   (OpReg (regnames8 !! fromIntegral reg)) (fromIntegral reg)]
-      1 -> do (op1, op2, mod, reg, rm) <- parseAddress32 opsize
-              return $ Instr op opsize [op1, op2]
-      2 -> do (op1, op2, mod, reg, rm) <- parseAddress32 opsize
-              return $ Instr op OP8
-                   [(OpReg (regnames8 !! fromIntegral reg))
-                       (fromIntegral reg), op1]
-      3 -> do (op1, op2, mod, reg, rm) <- parseAddress32 opsize
-              return $ Instr op opsize [op2, op1]
-      4 -> do b <- anyWord8
-              return $ Instr op OP8 [(OpReg "al" 0), (OpImm (fromIntegral b))]
-      5 -> do b <- anyWordZ
-              rn <- registerName 0
-              return $ Instr op opsize [(OpReg rn 0), (OpImm b)]
-      _ -> return $ Bad b "no ALU opcode (internal error)"
+  opsize <- instrOperandSize
+  case b .&. 0x07 of
+    0 -> do (op1, op2, mod, reg, rm) <- parseAddress32 opsize
+            return $ Instr op OP8 [op1, (OpReg (regnames8 !! fromIntegral reg)) (fromIntegral reg)]
+
+    1 -> do (op1, op2, mod, reg, rm) <- parseAddress32 opsize
+            return $ Instr op opsize [op1, op2]
+
+    2 -> do (op1, op2, mod, reg, rm) <- parseAddress32 opsize
+            return $ Instr op OP8 [(OpReg (regnames8 !! fromIntegral reg)) (fromIntegral reg), op1]
+
+    3 -> do (op1, op2, mod, reg, rm) <- parseAddress32 opsize
+            return $ Instr op opsize [op2, op1]
+
+    4 -> do b <- anyWord8
+            return $ Instr op OP8 [(OpReg "al" 0), (OpImm (fromIntegral b))]
+
+    5 -> do b <- anyWordZ
+            rn <- registerName 0
+            return $ Instr op opsize [(OpReg rn 0), (OpImm b)]
+
+    _ -> return $ Bad b "no ALU opcode (internal error)"
 
 
 parsePUSHSeg :: (Stream s m Word8, Monad m) => String -> Word8 -> ParsecT s PState m Instr
-parsePUSHSeg r _ = do
-     return $ Instr PUSH OP16 [(OpReg r 0)] -- FIXME: register number
+parsePUSHSeg r _ = return $ Instr PUSH OP16 [(OpReg r 0)] -- FIXME: register number
+
 
 parsePOPSeg :: (Stream s m Word8, Monad m) => String -> Word8 -> ParsecT s PState m Instr
-parsePOPSeg r _ = do
-     return $ Instr POP OP16 [(OpReg r 0)] -- FIXME: register number
+parsePOPSeg r _ = return $ Instr POP OP16 [(OpReg r 0)] -- FIXME: register number
 
 parseGenericGvEw
   :: (Stream s m Word8, Monad m) => Opcode -> t -> ParsecT s PState m Instr
@@ -997,6 +996,7 @@ parseGenericGvEb name b = do
                                                OpReg (regnames8 !! num) num]
     _ -> return $ Instr name OP8 [op2, op1]
 
+
 parseGenericGvEv
   :: (Stream s m Word8, Monad m) => Opcode -> t -> ParsecT s PState m Instr
 parseGenericGvEv name b = do
@@ -1004,12 +1004,15 @@ parseGenericGvEv name b = do
   (op1, op2, mod, reg, rm) <- parseAddress32 opsize
   return $ Instr name opsize [op2, op1]
 
+
 parseGenericEvGv
   :: (Stream s m Word8, Monad m) => Opcode -> t -> ParsecT s PState m Instr
+
 parseGenericEvGv name b = do
   opsize <- instrOperandSize
   (op1, op2, mod, reg, rm) <- parseAddress32 opsize
   return $ Instr name opsize [op1, op2]
+
 
 parseGenericEbGb
   :: (Stream s m Word8, Monad m) => Opcode -> t -> ParsecT s PState m Instr
@@ -1025,281 +1028,283 @@ parseGenericEv name b = do
   (op1, op2, mod, _, rm) <- parseAddress32 opsize
   return $ Instr name opsize [op1]
 
+
 twoByteOpCodeMap
   :: (Stream s m Word8, Monad m) => M.Map Word8 (Word8 -> ParsecT s PState m Instr)
 twoByteOpCodeMap = M.fromList
-    [(0x00, parseGrp6),
-     (0x01, parseGrp7),
-     (0x02, parseGenericGvEw LAR),
-     (0x03, parseGenericGvEw LSL),
-     (0x04, parseReserved),
-     (0x05, onlyIn64BitMode (parseGeneric SYSCALL OPNONE)),
-     (0x06, parseGeneric CLTS OPNONE),
-     (0x07, onlyIn64BitMode (parseGeneric SYSCALL OPNONE)),
-     (0x08, parseGeneric INVD OPNONE),
-     (0x09, parseGeneric WBINVD OPNONE),
-     (0x0a, parseReserved),
-     (0x0b, parseUndefined UD2),
-     (0x0c, parseReserved),
-     (0x0d, parseGenericEv NOP),
-     (0x0e, parseReserved),
-     (0x0f, parseReserved),
+  [ (0x00, parseGrp6)
+  , (0x01, parseGrp7)
+  , (0x02, parseGenericGvEw LAR)
+  , (0x03, parseGenericGvEw LSL)
+  , (0x04, parseReserved)
+  , (0x05, onlyIn64BitMode (parseGeneric SYSCALL OPNONE))
+  , (0x06, parseGeneric CLTS OPNONE)
+  , (0x07, onlyIn64BitMode (parseGeneric SYSCALL OPNONE))
+  , (0x08, parseGeneric INVD OPNONE)
+  , (0x09, parseGeneric WBINVD OPNONE)
+  , (0x0a, parseReserved)
+  , (0x0b, parseUndefined UD2)
+  , (0x0c, parseReserved)
+  , (0x0d, parseGenericEv NOP)
+  , (0x0e, parseReserved)
+  , (0x0f, parseReserved)
 
-     (0x10, parseMOVUPS),
-     (0x11, parseMOVUPS),
-     (0x12, parseMOVLPS),
-     (0x13, parseMOVLPS),
-     (0x14, parseUNPCKLPS),
-     (0x15, parseUNPCKHPS),
-     (0x16, parseMOVHPS),
-     (0x17, parseMOVHPS),
-     (0x18, parseGrp16),
-     (0x19, parseReserved),
-     (0x1a, parseReserved),
-     (0x1b, parseReserved),
-     (0x1c, parseReserved),
-     (0x1d, parseReserved),
-     (0x1e, parseReserved),
-     (0x1f, parseGenericEv NOP),
+  , (0x10, parseMOVUPS)
+  , (0x11, parseMOVUPS)
+  , (0x12, parseMOVLPS)
+  , (0x13, parseMOVLPS)
+  , (0x14, parseUNPCKLPS)
+  , (0x15, parseUNPCKHPS)
+  , (0x16, parseMOVHPS)
+  , (0x17, parseMOVHPS)
+  , (0x18, parseGrp16)
+  , (0x19, parseReserved)
+  , (0x1a, parseReserved)
+  , (0x1b, parseReserved)
+  , (0x1c, parseReserved)
+  , (0x1d, parseReserved)
+  , (0x1e, parseReserved)
+  , (0x1f, parseGenericEv NOP)
 
-     (0x20, parseMOVCtrlDebug),
-     (0x21, parseMOVCtrlDebug),
-     (0x22, parseMOVCtrlDebug),
-     (0x23, parseMOVCtrlDebug),
-     (0x24, parseReserved),
-     (0x25, parseReserved),
-     (0x26, parseReserved),
-     (0x27, parseReserved),
-     (0x28, parseMOVAPS),
-     (0x29, parseMOVAPS),
-     (0x2a, parseCVTI2PS),
-     (0x2b, parseMOVNTPS),
-     (0x2c, parseCVTTPS2PI),
-     (0x2d, parseCVTPS2PI),
-     (0x2e, parseUCOMISS),
-     (0x2f, parseCOMISS),
+  , (0x20, parseMOVCtrlDebug)
+  , (0x21, parseMOVCtrlDebug)
+  , (0x22, parseMOVCtrlDebug)
+  , (0x23, parseMOVCtrlDebug)
+  , (0x24, parseReserved)
+  , (0x25, parseReserved)
+  , (0x26, parseReserved)
+  , (0x27, parseReserved)
+  , (0x28, parseMOVAPS)
+  , (0x29, parseMOVAPS)
+  , (0x2a, parseCVTI2PS)
+  , (0x2b, parseMOVNTPS)
+  , (0x2c, parseCVTTPS2PI)
+  , (0x2d, parseCVTPS2PI)
+  , (0x2e, parseUCOMISS)
+  , (0x2f, parseCOMISS)
 
-     (0x30, parseGeneric WRMSR OPNONE),
-     (0x31, parseGeneric RDTSC OPNONE),
-     (0x32, parseGeneric RDMSR OPNONE),
-     (0x33, parseGeneric RDPMC OPNONE),
-     (0x34, parseGeneric SYSENTER OPNONE),
-     (0x35, parseGeneric SYSEXIT OPNONE),
-     (0x36, parseReserved),
-     (0x37, parseReserved),
-     (0x38, parseReserved),
-     (0x39, parseReserved),
-     (0x3a, parseReserved),
-     (0x3b, parseReserved),
-     (0x3c, parseReserved),
-     (0x3d, parseReserved),
-     (0x3e, parseReserved),
-     (0x3f, parseReserved),
+  , (0x30, parseGeneric WRMSR OPNONE)
+  , (0x31, parseGeneric RDTSC OPNONE)
+  , (0x32, parseGeneric RDMSR OPNONE)
+  , (0x33, parseGeneric RDPMC OPNONE)
+  , (0x34, parseGeneric SYSENTER OPNONE)
+  , (0x35, parseGeneric SYSEXIT OPNONE)
+  , (0x36, parseReserved)
+  , (0x37, parseReserved)
+  , (0x38, parseReserved)
+  , (0x39, parseReserved)
+  , (0x3a, parseReserved)
+  , (0x3b, parseReserved)
+  , (0x3c, parseReserved)
+  , (0x3d, parseReserved)
+  , (0x3e, parseReserved)
+  , (0x3f, parseReserved)
 
-     (0x40, parseCMOVcc),
-     (0x41, parseCMOVcc),
-     (0x42, parseCMOVcc),
-     (0x43, parseCMOVcc),
-     (0x44, parseCMOVcc),
-     (0x45, parseCMOVcc),
-     (0x46, parseCMOVcc),
-     (0x47, parseCMOVcc),
-     (0x48, parseCMOVcc),
-     (0x49, parseCMOVcc),
-     (0x4a, parseCMOVcc),
-     (0x4b, parseCMOVcc),
-     (0x4c, parseCMOVcc),
-     (0x4d, parseCMOVcc),
-     (0x4e, parseCMOVcc),
-     (0x4f, parseCMOVcc),
+  , (0x40, parseCMOVcc)
+  , (0x41, parseCMOVcc)
+  , (0x42, parseCMOVcc)
+  , (0x43, parseCMOVcc)
+  , (0x44, parseCMOVcc)
+  , (0x45, parseCMOVcc)
+  , (0x46, parseCMOVcc)
+  , (0x47, parseCMOVcc)
+  , (0x48, parseCMOVcc)
+  , (0x49, parseCMOVcc)
+  , (0x4a, parseCMOVcc)
+  , (0x4b, parseCMOVcc)
+  , (0x4c, parseCMOVcc)
+  , (0x4d, parseCMOVcc)
+  , (0x4e, parseCMOVcc)
+  , (0x4f, parseCMOVcc)
 
-     (0x50, parseMOVSKPS),
-     (0x51, parseSQRTPS),
-     (0x52, parseRSQRTPS),
-     (0x53, parseRCPPS),
-     (0x54, parseANDPS),
-     (0x55, parseANDNPS),
-     (0x56, parseORPS),
-     (0x57, parseXORPS),
-     (0x58, parseADDPS),
-     (0x59, parseMULPS),
-     (0x5a, parseCVTPS2PD),
-     (0x5b, parseCVTDQ2PS),
-     (0x5c, parseSUBPS),
-     (0x5d, parseMINPS),
-     (0x5e, parseDIVPS),
-     (0x5f, parseMAXPS),
+  , (0x50, parseMOVSKPS)
+  , (0x51, parseSQRTPS)
+  , (0x52, parseRSQRTPS)
+  , (0x53, parseRCPPS)
+  , (0x54, parseANDPS)
+  , (0x55, parseANDNPS)
+  , (0x56, parseORPS)
+  , (0x57, parseXORPS)
+  , (0x58, parseADDPS)
+  , (0x59, parseMULPS)
+  , (0x5a, parseCVTPS2PD)
+  , (0x5b, parseCVTDQ2PS)
+  , (0x5c, parseSUBPS)
+  , (0x5d, parseMINPS)
+  , (0x5e, parseDIVPS)
+  , (0x5f, parseMAXPS)
 
-     (0x60, parsePUNPCKLBW),
-     (0x61, parsePUNPCKLWD),
-     (0x62, parsePUNPCKLDQ),
-     (0x63, parsePACKSSWB),
-     (0x64, parsePCMPGTB),
-     (0x65, parsePCMPGTW),
-     (0x66, parsePCMPGTD),
-     (0x67, parsePACKUSWB),
-     (0x68, parsePUNPCKHBW),
-     (0x69, parsePUNPCKHWD),
-     (0x6a, parsePUNPCKHDQ),
-     (0x6b, parsePACKSSDW),
-     (0x6c, parsePUNPCKLQDQ),
-     (0x6d, parsePUNPCKHQDQ),
-     (0x6e, parseMOVD_Q),
-     (0x6f, parseMOVQ),
+  , (0x60, parsePUNPCKLBW)
+  , (0x61, parsePUNPCKLWD)
+  , (0x62, parsePUNPCKLDQ)
+  , (0x63, parsePACKSSWB)
+  , (0x64, parsePCMPGTB)
+  , (0x65, parsePCMPGTW)
+  , (0x66, parsePCMPGTD)
+  , (0x67, parsePACKUSWB)
+  , (0x68, parsePUNPCKHBW)
+  , (0x69, parsePUNPCKHWD)
+  , (0x6a, parsePUNPCKHDQ)
+  , (0x6b, parsePACKSSDW)
+  , (0x6c, parsePUNPCKLQDQ)
+  , (0x6d, parsePUNPCKHQDQ)
+  , (0x6e, parseMOVD_Q)
+  , (0x6f, parseMOVQ)
 
-     (0x70, parsePSHUFW),
-     (0x71, parseGrp12),
-     (0x72, parseGrp13),
-     (0x73, parseGrp14),
-     (0x74, parsePCMPEQB),
-     (0x75, parsePCMPEQW),
-     (0x76, parsePCMPEQD),
-     (0x77, parseGeneric EMMS OPNONE),
-     (0x78, parseVMREAD),
-     (0x79, parseVMWRITE),
-     (0x7a, parseReserved),
-     (0x7b, parseReserved),
-     (0x7c, parseHADDPS),
-     (0x7d, parseHSUBPS),
-     (0x7e, parseMOVD_Q),
-     (0x7f, parseMOVQ),
+  , (0x70, parsePSHUFW)
+  , (0x71, parseGrp12)
+  , (0x72, parseGrp13)
+  , (0x73, parseGrp14)
+  , (0x74, parsePCMPEQB)
+  , (0x75, parsePCMPEQW)
+  , (0x76, parsePCMPEQD)
+  , (0x77, parseGeneric EMMS OPNONE)
+  , (0x78, parseVMREAD)
+  , (0x79, parseVMWRITE)
+  , (0x7a, parseReserved)
+  , (0x7b, parseReserved)
+  , (0x7c, parseHADDPS)
+  , (0x7d, parseHSUBPS)
+  , (0x7e, parseMOVD_Q)
+  , (0x7f, parseMOVQ)
 
-     (0x80, parseJccLong),
-     (0x81, parseJccLong),
-     (0x82, parseJccLong),
-     (0x83, parseJccLong),
-     (0x84, parseJccLong),
-     (0x85, parseJccLong),
-     (0x86, parseJccLong),
-     (0x87, parseJccLong),
-     (0x88, parseJccLong),
-     (0x89, parseJccLong),
-     (0x8a, parseJccLong),
-     (0x8b, parseJccLong),
-     (0x8c, parseJccLong),
-     (0x8d, parseJccLong),
-     (0x8e, parseJccLong),
-     (0x8f, parseJccLong),
+  , (0x80, parseJccLong)
+  , (0x81, parseJccLong)
+  , (0x82, parseJccLong)
+  , (0x83, parseJccLong)
+  , (0x84, parseJccLong)
+  , (0x85, parseJccLong)
+  , (0x86, parseJccLong)
+  , (0x87, parseJccLong)
+  , (0x88, parseJccLong)
+  , (0x89, parseJccLong)
+  , (0x8a, parseJccLong)
+  , (0x8b, parseJccLong)
+  , (0x8c, parseJccLong)
+  , (0x8d, parseJccLong)
+  , (0x8e, parseJccLong)
+  , (0x8f, parseJccLong)
 
-     (0x90, parseSETcc),
-     (0x91, parseSETcc),
-     (0x92, parseSETcc),
-     (0x93, parseSETcc),
-     (0x94, parseSETcc),
-     (0x95, parseSETcc),
-     (0x96, parseSETcc),
-     (0x97, parseSETcc),
-     (0x98, parseSETcc),
-     (0x99, parseSETcc),
-     (0x9a, parseSETcc),
-     (0x9b, parseSETcc),
-     (0x9c, parseSETcc),
-     (0x9d, parseSETcc),
-     (0x9e, parseSETcc),
-     (0x9f, parseSETcc),
+  , (0x90, parseSETcc)
+  , (0x91, parseSETcc)
+  , (0x92, parseSETcc)
+  , (0x93, parseSETcc)
+  , (0x94, parseSETcc)
+  , (0x95, parseSETcc)
+  , (0x96, parseSETcc)
+  , (0x97, parseSETcc)
+  , (0x98, parseSETcc)
+  , (0x99, parseSETcc)
+  , (0x9a, parseSETcc)
+  , (0x9b, parseSETcc)
+  , (0x9c, parseSETcc)
+  , (0x9d, parseSETcc)
+  , (0x9e, parseSETcc)
+  , (0x9f, parseSETcc)
 
-     (0xa0, parsePUSHSeg "fs"),
-     (0xa1, parsePOPSeg "fs"),
-     (0xa2, parseGeneric CPUID OPNONE),
-     (0xa3, parseGenericEvGv BT),
-     (0xa4, parseSHLD),
-     (0xa5, parseSHLD),
-     (0xa6, parseReserved),
-     (0xa7, parseReserved),
-     (0xa8, parsePUSHSeg "gs"),
-     (0xa9, parsePOPSeg "gs"),
-     (0xaa, parseGeneric RSM OPNONE),
-     (0xab, parseGenericEvGv BTS),
-     (0xac, parseSHRD),
-     (0xad, parseSHRD),
-     (0xae, parseGrp15),
-     (0xaf, parseGenericGvEv IMUL),
+  , (0xa0, parsePUSHSeg "fs")
+  , (0xa1, parsePOPSeg "fs")
+  , (0xa2, parseGeneric CPUID OPNONE)
+  , (0xa3, parseGenericEvGv BT)
+  , (0xa4, parseSHLD)
+  , (0xa5, parseSHLD)
+  , (0xa6, parseReserved)
+  , (0xa7, parseReserved)
+  , (0xa8, parsePUSHSeg "gs")
+  , (0xa9, parsePOPSeg "gs")
+  , (0xaa, parseGeneric RSM OPNONE)
+  , (0xab, parseGenericEvGv BTS)
+  , (0xac, parseSHRD)
+  , (0xad, parseSHRD)
+  , (0xae, parseGrp15)
+  , (0xaf, parseGenericGvEv IMUL)
 
-     (0xb0, parseGenericEbGb CMPXCHG),
-     (0xb1, parseGenericEvGv CMPXCHG),
-     (0xb2, parseLoadSegmentRegister LSS),
-     (0xb3, parseGenericEvGv BTR),
-     (0xb4, parseLoadSegmentRegister LFS),
-     (0xb5, parseLoadSegmentRegister LGS),
-     (0xb6, parseGenericGvEb MOVZXB),
-     (0xb7, parseGenericGvEw MOVZXW),
-     (0xb8, parseReserved),
-     (0xb9, parseGrp10),
-     (0xba, parseGrp8),
-     (0xbb, parseGenericEvGv BTC),
-     (0xbc, parseGenericGvEv BSF),
-     (0xbd, parseGenericGvEv BSR),
-     (0xbe, parseGenericGvEb MOVSXB),
-     (0xbf, parseGenericGvEw MOVSXW),
+  , (0xb0, parseGenericEbGb CMPXCHG)
+  , (0xb1, parseGenericEvGv CMPXCHG)
+  , (0xb2, parseLoadSegmentRegister LSS)
+  , (0xb3, parseGenericEvGv BTR)
+  , (0xb4, parseLoadSegmentRegister LFS)
+  , (0xb5, parseLoadSegmentRegister LGS)
+  , (0xb6, parseGenericGvEb MOVZXB)
+  , (0xb7, parseGenericGvEw MOVZXW)
+  , (0xb8, parseReserved)
+  , (0xb9, parseGrp10)
+  , (0xba, parseGrp8)
+  , (0xbb, parseGenericEvGv BTC)
+  , (0xbc, parseGenericGvEv BSF)
+  , (0xbd, parseGenericGvEv BSR)
+  , (0xbe, parseGenericGvEb MOVSXB)
+  , (0xbf, parseGenericGvEw MOVSXW)
 
-     (0xc0, parseGenericEbGb XADD),
-     (0xc1, parseGenericEvGv XADD),
-     (0xc2, parseCMPPS),
-     (0xc3, parseMOVNTI),
-     (0xc4, parsePINSRW),
-     (0xc5, parsePEXTRW),
-     (0xc6, parseSHUFPS),
-     (0xc7, parseGrp9),
-     (0xc8, parseBSWAP),
-     (0xc9, parseBSWAP),
-     (0xca, parseBSWAP),
-     (0xcb, parseBSWAP),
-     (0xcc, parseBSWAP),
-     (0xcd, parseBSWAP),
-     (0xce, parseBSWAP),
-     (0xcf, parseBSWAP),
+  , (0xc0, parseGenericEbGb XADD)
+  , (0xc1, parseGenericEvGv XADD)
+  , (0xc2, parseCMPPS)
+  , (0xc3, parseMOVNTI)
+  , (0xc4, parsePINSRW)
+  , (0xc5, parsePEXTRW)
+  , (0xc6, parseSHUFPS)
+  , (0xc7, parseGrp9)
+  , (0xc8, parseBSWAP)
+  , (0xc9, parseBSWAP)
+  , (0xca, parseBSWAP)
+  , (0xcb, parseBSWAP)
+  , (0xcc, parseBSWAP)
+  , (0xcd, parseBSWAP)
+  , (0xce, parseBSWAP)
+  , (0xcf, parseBSWAP)
 
-     (0xd0, parseADDSUBPS),
-     (0xd1, parsePSRLW),
-     (0xd2, parsePSRLD),
-     (0xd3, parsePSRLQ),
-     (0xd4, parsePADDQ),
-     (0xd5, parsePMULLW),
-     (0xd6, parseMOVQ),
-     (0xd7, parsePMOVMSKB),
-     (0xd8, parsePSUBUSB),
-     (0xd9, parsePSUBUSW),
-     (0xda, parsePMINUB),
-     (0xdb, parsePAND),
-     (0xdc, parsePADDUSB),
-     (0xdd, parsePADDUSW),
-     (0xde, parsePMAXUB),
-     (0xdf, parsePANDN),
+  , (0xd0, parseADDSUBPS)
+  , (0xd1, parsePSRLW)
+  , (0xd2, parsePSRLD)
+  , (0xd3, parsePSRLQ)
+  , (0xd4, parsePADDQ)
+  , (0xd5, parsePMULLW)
+  , (0xd6, parseMOVQ)
+  , (0xd7, parsePMOVMSKB)
+  , (0xd8, parsePSUBUSB)
+  , (0xd9, parsePSUBUSW)
+  , (0xda, parsePMINUB)
+  , (0xdb, parsePAND)
+  , (0xdc, parsePADDUSB)
+  , (0xdd, parsePADDUSW)
+  , (0xde, parsePMAXUB)
+  , (0xdf, parsePANDN)
 
-     (0xe0, parsePAVGB),
-     (0xe1, parsePSRAW),
-     (0xe2, parsePSRAD),
-     (0xe3, parsePAVGW),
-     (0xe4, parsePMULHUW),
-     (0xe5, parsePMULHW),
-     (0xe6, parseCVTPD2DQ),
-     (0xe7, parseMOVNTQ),
-     (0xe8, parsePSUBSB),
-     (0xe9, parsePSUBSQ),
-     (0xea, parsePMINSW),
-     (0xeb, parsePOR),
-     (0xec, parsePADDSB),
-     (0xed, parsePADDSW),
-     (0xee, parsePMAXSW),
-     (0xef, parsePXOR),
+  , (0xe0, parsePAVGB)
+  , (0xe1, parsePSRAW)
+  , (0xe2, parsePSRAD)
+  , (0xe3, parsePAVGW)
+  , (0xe4, parsePMULHUW)
+  , (0xe5, parsePMULHW)
+  , (0xe6, parseCVTPD2DQ)
+  , (0xe7, parseMOVNTQ)
+  , (0xe8, parsePSUBSB)
+  , (0xe9, parsePSUBSQ)
+  , (0xea, parsePMINSW)
+  , (0xeb, parsePOR)
+  , (0xec, parsePADDSB)
+  , (0xed, parsePADDSW)
+  , (0xee, parsePMAXSW)
+  , (0xef, parsePXOR)
 
-     (0xf0, parseLDDQU),
-     (0xf1, parsePSLLW),
-     (0xf2, parsePSLLD),
-     (0xf3, parsePSLLQ),
-     (0xf4, parsePMULUDQ),
-     (0xf5, parsePMADDWD),
-     (0xf6, parsePSADBW),
-     (0xf7, parseMASKMOVQ),
-     (0xf8, parsePSUBB),
-     (0xf9, parsePSUBW),
-     (0xfa, parsePSUBD),
-     (0xfb, parsePSUBQ),
-     (0xfc, parsePADDB),
-     (0xfd, parsePADDW),
-     (0xfe, parsePADDD),
-     (0xff, parseReserved)
-     ]
+  , (0xf0, parseLDDQU)
+  , (0xf1, parsePSLLW)
+  , (0xf2, parsePSLLD)
+  , (0xf3, parsePSLLQ)
+  , (0xf4, parsePMULUDQ)
+  , (0xf5, parsePMADDWD)
+  , (0xf6, parsePSADBW)
+  , (0xf7, parseMASKMOVQ)
+  , (0xf8, parsePSUBB)
+  , (0xf9, parsePSUBW)
+  , (0xfa, parsePSUBD)
+  , (0xfb, parsePSUBQ)
+  , (0xfc, parsePADDB)
+  , (0xfd, parsePADDW)
+  , (0xfe, parsePADDD)
+  , (0xff, parseReserved)
+  ]
+
 
 twoByteEscape :: (Stream s m Word8, Monad m) => Word8 -> ParsecT s PState m Instr
 twoByteEscape b1 = do
@@ -1438,14 +1443,14 @@ parseIMUL 0x6b = do
   imm <- anyWord8
   return $ Instr IMUL opsize [op2, op1, OpImm (fromIntegral imm)]
 
-parseINS :: (Num t, Monad m, Eq t) => t -> ParsecT s PState m Instr
+parseINS :: (Stream s m Word8, Monad m) => Word8 -> ParsecT s PState m Instr
 parseINS 0x6c = return $ Instr INS OP8 []
 parseINS b@0x6d = chooseOperandSize
                    (\ _ -> return $ Instr INS OP16 [])
                   (\ _ -> return $ Instr INS OP32 []) b
 
 parseOUTS
-  :: (Num t, Monad m, Eq t) => t -> ParsecT s PState m Instr
+  :: (Stream s m Word8, Monad m) => Word8 -> ParsecT s PState m Instr
 parseOUTS 0x6e = return $ Instr OUTS OP8 []
 parseOUTS b@0x6f = chooseOperandSize
                      (\ _ -> return $ Instr OUTS OP16 [])
@@ -1540,7 +1545,7 @@ parseXCHGReg b =
                  return $ Instr XCHG OP64 [OpReg "rax" 0,
                                            OpReg rn (fromIntegral reg)]
 
-parseCBW_CWDE_CDQE :: Monad m => t -> ParsecT s PState m Instr
+parseCBW_CWDE_CDQE :: (Stream s m Word8, Monad m) => Word8 -> ParsecT s PState m Instr
 parseCBW_CWDE_CDQE b = do
   st <- getState
   if in64BitMode st
@@ -1551,7 +1556,7 @@ parseCBW_CWDE_CDQE b = do
             (\ _ -> return $ Instr CBW OPNONE [])
             (\ _ -> return $ Instr CWDE OPNONE []) b
 
-parseCWD_CDQ_CQO :: Monad m => t -> ParsecT s PState m Instr
+parseCWD_CDQ_CQO :: (Stream s m Word8, Monad m) => t -> ParsecT s PState m Instr
 parseCWD_CDQ_CQO b = do
   st <- getState
   if in64BitMode st
@@ -1571,7 +1576,7 @@ parseCALLF b = do
 
 -- FIXME: Check default/operand sizes.
 
-parsePUSHF :: Monad m => t -> ParsecT s PState m Instr
+parsePUSHF :: (Stream s m Word8, Monad m) => t -> ParsecT s PState m Instr
 parsePUSHF b = do
   st <- getState
   if in64BitMode st
@@ -1582,7 +1587,7 @@ parsePUSHF b = do
              (\ _ -> return $ Instr PUSHF OPNONE [])
              (\ _ -> return $ Instr PUSHFD OPNONE []) b
 
-parsePOPF :: Monad m => t -> ParsecT s PState m Instr
+parsePOPF :: (Stream s m Word8, Monad m) => t -> ParsecT s PState m Instr
 parsePOPF b = do
   st <- getState
   if in64BitMode st
@@ -1985,10 +1990,11 @@ parseOUT 0xef = do
     opsize <- instrOperandSize
     return $ Instr OUT opsize [OpReg "dx" 2, OpReg rn 0]
 
--- Return the name of the register encoded with R.  Take 64-bit mode and
+
+-- | Return the name of the register encoded with R.  Take 64-bit mode and
 -- possible REX and operand-size prefixes into account.
 
-registerName :: Monad m => Int -> ParsecT s PState m [Char]
+registerName :: (Stream s m Word8, Monad m) => Int -> ParsecT s PState m String
 registerName r = do
     st <- getState
     if in64BitMode st && hasREX rex_R st
@@ -1996,6 +2002,7 @@ registerName r = do
        else case operandBitMode st of
               BIT16 -> return $ regnames16 !! r
               BIT32 -> return $ regnames32 !! r
+
 
 instrOperandSize :: (Stream s m Word8, Monad m) => ParsecT s PState m InstrOperandSize
 instrOperandSize = do
@@ -2006,67 +2013,72 @@ instrOperandSize = do
               BIT16 -> return OP16
               BIT32 -> return OP32
 
-regnames8 = ["al", "cl", "dl", "bl", "ah", "ch", "dh", "bh"]
-regnames16 = ["ax", "cx", "dx", "bx", "sp", "bp", "si", "di"]
+
+regnames8  = ["al",  "cl",  "dl",  "bl",  "ah",  "ch",  "dh",  "bh"]
+regnames16 = ["ax",  "cx",  "dx",  "bx",  "sp",  "bp",  "si",  "di"]
 regnames32 = ["eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi"]
 regnames64 = ["rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi"]
 segregnames = ["es", "cs", "ss", "ds", "fs", "gs", "<invalid>", "<invalid>"]
 mmxregs = ["mm0", "mm1", "mm2", "mm3", "mm4", "mm5", "mm6", "mm7"]
 xmmregs = ["xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"]
 
+
 jccname :: (Num a, Eq a) => a -> Opcode
-jccname 0 = JO
-jccname 1 = JNO
-jccname 2 = JB
-jccname 3 = JNB
-jccname 4 = JE
-jccname 5 = JNE
-jccname 6 = JBE
-jccname 7 = JA
-jccname 8 = JS
-jccname 9 = JNS
-jccname 10 = JP
-jccname 11 = JNP
-jccname 12 = JL
-jccname 13 = JGE
-jccname 14 = JLE
-jccname 15 = JG
+jccname = \case
+  0  -> JO
+  1  -> JNO
+  2  -> JB
+  3  -> JNB
+  4  -> JE
+  5  -> JNE
+  6  -> JBE
+  7  -> JA
+  8  -> JS
+  9  -> JNS
+  10 -> JP
+  11 -> JNP
+  12 -> JL
+  13 -> JGE
+  14 -> JLE
+  15 -> JG
 
 setccname :: (Num a, Eq a) => a -> Opcode
-setccname 0 = SETO
-setccname 1 = SETNO
-setccname 2 = SETB
-setccname 3 = SETNB
-setccname 4 = SETE
-setccname 5 = SETNE
-setccname 6 = SETBE
-setccname 7 = SETA
-setccname 8 = SETS
-setccname 9 = SETNS
-setccname 10 = SETP
-setccname 11 = SETNP
-setccname 12 = SETL
-setccname 13 = SETGE
-setccname 14 = SETLE
-setccname 15 = SETG
+setccname = \case
+  0  -> SETO
+  1  -> SETNO
+  2  -> SETB
+  3  -> SETNB
+  4  -> SETE
+  5  -> SETNE
+  6  -> SETBE
+  7  -> SETA
+  8  -> SETS
+  9  -> SETNS
+  10 -> SETP
+  11 -> SETNP
+  12 -> SETL
+  13 -> SETGE
+  14 -> SETLE
+  15 -> SETG
 
 cmovccname :: (Num a, Eq a) => a -> Opcode
-cmovccname 0 = CMOVO
-cmovccname 1 = CMOVNO
-cmovccname 2 = CMOVB
-cmovccname 3 = CMOVNB
-cmovccname 4 = CMOVE
-cmovccname 5 = CMOVNE
-cmovccname 6 = CMOVBE
-cmovccname 7 = CMOVA
-cmovccname 8 = CMOVS
-cmovccname 9 = CMOVNS
-cmovccname 10 = CMOVP
-cmovccname 11 = CMOVNP
-cmovccname 12 = CMOVL
-cmovccname 13 = CMOVGE
-cmovccname 14 = CMOVLE
-cmovccname 15 = CMOVG
+cmovccname = \case
+  0  -> CMOVO
+  1  -> CMOVNO
+  2  -> CMOVB
+  3  -> CMOVNB
+  4  -> CMOVE
+  5  -> CMOVNE
+  6  -> CMOVBE
+  7  -> CMOVA
+  8  -> CMOVS
+  9  -> CMOVNS
+  10 -> CMOVP
+  11 -> CMOVNP
+  12 -> CMOVL
+  13 -> CMOVGE
+  14 -> CMOVLE
+  15 -> CMOVG
 
 parseGrp1
   :: (Num a, Eq a, Stream s m Word8, Monad m) => a -> ParsecT s PState m Instr
@@ -2537,7 +2549,7 @@ parsePUNPCKLWD = parseUnimplemented
 parsePACKSSWB :: (Stream s m Word8, Monad m) => Word8 -> ParsecT s PState m Instr
 parsePACKSSWB = parseUnimplemented
 
-parsePUNPCKHWD :: Monad m => Word8 -> m Instr
+parsePUNPCKHWD :: (Stream s m Word8, Monad m) => Word8 -> ParsecT s PState m Instr
 parsePUNPCKHWD = parseUnimplemented
 
 parseSUBPS :: (Stream s m Word8, Monad m) => t -> ParsecT s PState m Instr
@@ -2582,7 +2594,7 @@ parsePACKSSDW = parseUnimplemented
 parsePUNPCKLQDQ :: (Stream s m Word8, Monad m) => Word8 -> ParsecT s PState m Instr
 parsePUNPCKLQDQ = parseUnimplemented
 
-parsePUNPCKHQDQ :: Monad m => Word8 -> m Instr
+parsePUNPCKHQDQ :: (Stream s m Word8, Monad m) => Word8 -> ParsecT s PState m Instr
 parsePUNPCKHQDQ = parseUnimplemented
 
 parsePSHUFW :: (Stream s m Word8, Monad m) => Word8 -> ParsecT s PState m Instr
@@ -2591,7 +2603,7 @@ parsePSHUFW = parseUnimplemented
 parsePCMPEQB :: (Stream s m Word8, Monad m) => Word8 -> ParsecT s PState m Instr
 parsePCMPEQB = parseUnimplemented
 
-parsePCMPEQW :: Monad m => Word8 -> m Instr
+parsePCMPEQW :: (Stream s m Word8, Monad m) => Word8 -> ParsecT s PState m Instr
 parsePCMPEQW = parseUnimplemented
 
 parsePCMPEQD :: (Stream s m Word8, Monad m) => Word8 -> ParsecT s PState m Instr
@@ -2625,7 +2637,7 @@ parseHSUBPS
   => t -> ParsecT s PState m Instr
 parseHSUBPS = parseXmmVW InvalidOpcode InvalidOpcode HSUBPS HSUBPD
 
-parseMOVD_Q :: Monad m => Word8 -> m Instr
+parseMOVD_Q :: (Stream s m Word8, Monad m) => Word8 -> ParsecT s PState m Instr
 parseMOVD_Q = parseUnimplemented
 
 parseJccLong b = do
