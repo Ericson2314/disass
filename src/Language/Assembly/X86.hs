@@ -81,14 +81,21 @@ module Language.Assembly.X86 (
   defaultConfig
   ) where
 
-import Text.ParserCombinators.Parsec
 import Control.Monad.State
-import System.IO
+import Control.Monad.Identity
+
 import Data.List
 import Data.Char
 import Data.Array.IArray
+
 import Numeric
+
 import Foreign
+
+import System.IO
+
+import Text.Parsec hiding (runParser)
+import Text.ParserCombinators.Parsec
 
 import Language.Assembly.X86.Instruction
 import Language.Assembly.X86.Print
@@ -135,12 +142,16 @@ disassembleListWithConfig :: (Monad m) => Config ->
 disassembleListWithConfig config ls =
     parseInstructions (configToState config) ls
 
+disassembleFile :: FilePath -> IO (Either ParseError [Instruction])
 disassembleFile filename = disassembleFileWithConfig defaultConfig filename
 
+disassembleFileWithConfig
+  :: Config -> FilePath -> IO (Either ParseError [Instruction])
 disassembleFileWithConfig config filename = do
   l <- readFile filename
   parseInstructions (configToState config) (map (fromIntegral . ord) l)
 
+instrToString :: [Instruction] -> ShowStyle -> [[Char]]
 instrToString insts style =
   map showInstr insts
  where
@@ -179,12 +190,14 @@ data Config = Config {confDefaultBitMode :: OperandSize,
                       confIn64BitMode        :: Bool,
                       confStartAddr          :: Word32}
 
+defaultConfig :: Config
 defaultConfig = Config{ confDefaultBitMode = BIT32,
                         confOperandBitMode = BIT32,
                         confAddressBitMode = BIT32,
                         confIn64BitMode = False,
                         confStartAddr = 0}
 
+configToState :: Config -> PState
 configToState (Config defBitMode opMode addrMode in64 confStartAddr) =
     defaultState{defaultBitMode = defBitMode,
                  operandBitMode = opMode,
@@ -195,6 +208,7 @@ configToState (Config defBitMode opMode addrMode in64 confStartAddr) =
 -- Default state to be used if no other is given to the disassembly
 -- routines.
 
+defaultState :: PState
 defaultState = PState { defaultBitMode = BIT32,
                   operandBitMode = BIT32,
                   addressBitMode = BIT32,
@@ -202,19 +216,25 @@ defaultState = PState { defaultBitMode = BIT32,
                   prefixes = [],
                   startAddr = 0}
 
-type Word8Parser a = GenParser Word8 PState a
+type Word8Parser a = ParsecT [Word8] PState Identity a
 
+parseInstructions
+  :: Monad m =>
+     PState -> [Word8] -> m (Either ParseError [Instruction])
 parseInstructions st l =
     return (runParser instructionSequence st "memory block" l)
 
 -- Parse a possibly empty sequence of instructions.
 
+instructionSequence
+  :: ParsecT [Word8] PState Identity [Instruction]
 instructionSequence = many instruction
 
 -- Parse a single instruction.  The result is either a valid instruction
 -- or an indicator that there starts no valid instruction at the current
 -- position.
 
+instruction :: ParsecT [Word8] PState Identity Instruction
 instruction = do
     startPos' <- getPosition
     let startPos = sourceColumn startPos' - 1
@@ -245,17 +265,23 @@ instruction = do
                         (fromIntegral (startAddr st) + startPos)
                         (take (endPos - startPos) input)
 
+toggleBitMode :: OperandSize -> OperandSize
 toggleBitMode BIT16 = BIT32
 toggleBitMode BIT32 = BIT16
 
+rex_B :: Integer
 rex_B = 0x1
+rex_X :: Integer
 rex_X = 0x2
+rex_R :: Word8
 rex_R = 0x4
+rex_W :: Word8
 rex_W = 0x8
 
 -- Return True if the given REX prefix bit appears in the list of current
 -- instruction prefixes, False otherwise.
 
+hasREX :: Word8 -> PState -> Bool
 hasREX rex st =
     let rexs = filter (\ b -> b >= 0x40 && b <= 0x4f) (prefixes st) in
        case rexs of
@@ -265,8 +291,10 @@ hasREX rex st =
 -- Return True if the given prefix appears in the list of current
 -- instruction prefixes, False otherwise.
 
+hasPrefix :: Word8 -> PState -> Bool
 hasPrefix b st = b `elem` prefixes st
 
+addPrefix :: Monad m => Word8 -> ParsecT s PState m ()
 addPrefix b = do
     st <- getState
     setState st{prefixes = b : prefixes st}
@@ -274,6 +302,7 @@ addPrefix b = do
 -- Parse a single prefix byte and remember it in the parser state.  If in
 -- 64-bit mode, accept REX prefixes.
 
+parsePrefix :: ParsecT [Word8] PState Identity ()
 parsePrefix = do
     (word8 0xf0 >>= addPrefix) -- LOCK
   <|>
@@ -343,6 +372,7 @@ parsePrefix = do
 
 -- Accept the single unsigned byte B.
 
+word8 :: (Stream s m a, Show a, Eq a) => a -> ParsecT s u m a
 word8 b = do
     tokenPrim showByte nextPos testByte
   where
@@ -371,6 +401,7 @@ anyInt8 = do
 
 -- Accept any 16-bit unsigned word.
 
+anyWord16 :: ParsecT [Word8] PState Identity Word16
 anyWord16 = do
      b0 <- anyWord8
      b1 <- anyWord8
@@ -381,6 +412,7 @@ anyWord16 = do
 
 -- Accept any 16-bit signed integer.
 
+anyInt16 :: ParsecT [Word8] PState Identity Int16
 anyInt16 = do
      b0 <- anyWord16
      let w0 :: Int16
@@ -389,6 +421,7 @@ anyInt16 = do
 
 -- Accept a 32-bit unsigned word.
 
+anyWord32 :: ParsecT [Word8] PState Identity Word32
 anyWord32 = do
      b0 <- anyWord16
      b1 <- anyWord16
@@ -491,6 +524,7 @@ anyWordP = do
                   w2' = fromIntegral w2
               return (w1' .|. (w2' `shiftL` 32))
 
+oneByteOpCodeMap :: [(Word8, Word8 -> Word8Parser Instr)]
 oneByteOpCodeMap =
     [(0x00, parseALU ADD),
      (0x01, parseALU ADD),
@@ -766,60 +800,89 @@ oneByteOpCodeMap =
 
      ]
 
+parseInvalidPrefix :: Monad m => Word8 -> m Instr
 parseInvalidPrefix b = do
   return $ Bad b "invalid prefix"
 
+parseInvalidOpcode :: Monad m => Word8 -> m Instr
 parseInvalidOpcode b = do
   return $ Bad b "invalid opcode"
 
+parseReserved :: Monad m => Word8 -> m Instr
 parseReserved b = do
   return $ Bad b "reserved opcode"
 
+parseUndefined :: (Show a, Monad m) => a -> Word8 -> m Instr
 parseUndefined name b = do
   return $ Bad b ("undefined opcode: " ++ show name)
 
+parseUnimplemented :: Monad m => Word8 -> m Instr
 parseUnimplemented b = do
   return $ Bad b "not implemented yet"
 
+invalidIn64BitMode
+  :: Monad m =>
+     (Word8 -> ParsecT s PState m Instr)
+     -> Word8 -> ParsecT s PState m Instr
 invalidIn64BitMode p b = do
   st <- getState
   if in64BitMode st
      then return $ Bad b "invalid in 64-bit mode"
      else p b
 
+onlyIn64BitMode
+  :: Monad m =>
+     (Word8 -> ParsecT s PState m Instr)
+     -> Word8 -> ParsecT s PState m Instr
 onlyIn64BitMode p b = do
   st <- getState
   if in64BitMode st
      then p b
      else return $ Bad b "only in 64-bit mode"
 
+choose64BitMode
+  :: Monad m =>
+     (t -> ParsecT s PState m b)
+     -> (t -> ParsecT s PState m b) -> t -> ParsecT s PState m b
 choose64BitMode p32 p64 b = do
   st <- getState
   if in64BitMode st
      then p64 b
      else p32 b
 
+chooseOperandSize
+  :: Monad m =>
+     (t -> ParsecT s PState m b)
+     -> (t -> ParsecT s PState m b) -> t -> ParsecT s PState m b
 chooseOperandSize p16 p32 b = do
   st <- getState
   case operandBitMode st of
     BIT16 -> p16 b
     BIT32 -> p32 b
 
+chooseAddressSize
+  :: Monad m =>
+     (t -> ParsecT s PState m b)
+     -> (t -> ParsecT s PState m b) -> t -> ParsecT s PState m b
 chooseAddressSize p16 p32 b = do
   st <- getState
   case addressBitMode st of
     BIT16 -> p16 b
     BIT32 -> p32 b
 
+parseModRM :: ParsecT [Word8] PState Identity (Word8, Word8, Word8)
 parseModRM = do
   b <- anyWord8
   parseModRM' b
+parseModRM' :: (Bits t, Num t, Monad m) => t -> m (t, t, t)
 parseModRM' b = do
   return (b `shiftR` 6, (b `shiftR` 3) .&. 7, (b .&. 7))
 
+parseSIB :: ParsecT [Word8] PState Identity (Word8, Word8, Word8)
 parseSIB = do
   b <- anyWord8
   parseSIB' b
+parseSIB' :: (Bits t, Num t, Monad m) => t -> m (t, t, t)
 parseSIB' b = do
   return (b `shiftR` 6, (b `shiftR` 3) .&. 7, (b .&. 7))
 
@@ -988,6 +1051,8 @@ parsePOPSeg :: String -> Word8 -> Word8Parser Instr
 parsePOPSeg r _ = do
      return $ Instr POP OP16 [(OpReg r 0)] -- FIXME: register number
 
+parseGenericGvEw
+  :: Opcode -> t -> ParsecT [Word8] PState Identity Instr
 parseGenericGvEw name b = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OP16
   case op1 of
@@ -995,6 +1060,8 @@ parseGenericGvEw name b = do
                                                OpReg (regnames16 !! num) num]
     _ -> return $ Instr name OP8 [op2, op1]
 
+parseGenericGvEb
+  :: Opcode -> t -> ParsecT [Word8] PState Identity Instr
 parseGenericGvEb name b = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OP8
   case op1 of
@@ -1002,26 +1069,36 @@ parseGenericGvEb name b = do
                                                OpReg (regnames8 !! num) num]
     _ -> return $ Instr name OP8 [op2, op1]
 
+parseGenericGvEv
+  :: Opcode -> t -> ParsecT [Word8] PState Identity Instr
 parseGenericGvEv name b = do
   opsize <- instrOperandSize
   (op1, op2, mod, reg, rm) <- parseAddress32 opsize
   return $ Instr name opsize [op2, op1]
 
+parseGenericEvGv
+  :: Opcode -> t -> ParsecT [Word8] PState Identity Instr
 parseGenericEvGv name b = do
   opsize <- instrOperandSize
   (op1, op2, mod, reg, rm) <- parseAddress32 opsize
   return $ Instr name opsize [op1, op2]
 
+parseGenericEbGb
+  :: Opcode -> t -> ParsecT [Word8] PState Identity Instr
 parseGenericEbGb name b = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OP8
   return $ Instr name OP8 [op1, (OpReg (regnames8 !! fromIntegral reg)
                                 (fromIntegral reg))]
 
+parseGenericEv
+  :: Opcode -> t -> ParsecT [Word8] PState Identity Instr
 parseGenericEv name b = do
   opsize <- instrOperandSize
   (op1, op2, mod, _, rm) <- parseAddress32 opsize
   return $ Instr name opsize [op1]
 
+twoByteOpCodeMap
+  :: [(Word8, Word8 -> ParsecT [Word8] PState Identity Instr)]
 twoByteOpCodeMap =
     [(0x00, parseGrp6),
      (0x01, parseGrp7),
@@ -1303,15 +1380,23 @@ twoByteEscape b1 = do
     Just p -> p b
     Nothing -> return $ Bad b "invalid two-byte opcode"
 
+parseGeneric
+  :: Monad m => Opcode -> InstrOperandSize -> t -> m Instr
 parseGeneric name opsize _ = do
     return (Instr name opsize [])
+parseGenericIb
+  :: Opcode -> t -> ParsecT [Word8] PState Identity Instr
 parseGenericIb name b = do
     b <-  anyWord8
     return $ Instr name OP8 [OpImm (fromIntegral b)]
+parseGenericIw
+  :: Opcode -> t -> ParsecT [Word8] PState Identity Instr
 parseGenericIw name _ = do
     w <- anyWord16
     pos <- getPosition
     return $ Instr name OP16 [OpImm (fromIntegral w)]
+parseGenericJb
+  :: Opcode -> t -> ParsecT [Word8] PState Identity Instr
 parseGenericJb name _ = do
     b <- anyInt8
     pos <- getPosition
@@ -1319,6 +1404,8 @@ parseGenericJb name _ = do
     return $ Instr name OPNONE
         [OpAddr (fromIntegral ((fromIntegral b + sourceColumn pos - 1)) +
                 (startAddr st)) OPNONE]
+parseGenericJz
+  :: Opcode -> t -> ParsecT [Word8] PState Identity Instr
 parseGenericJz name _ = do
     b <- anyIntZ
     pos <- getPosition
@@ -1327,18 +1414,25 @@ parseGenericJz name _ = do
         [OpAddr (fromIntegral ((fromIntegral b + sourceColumn pos - 1)) +
                (startAddr st)) OPNONE]
 
+parseINC
+  :: (Bits a, Integral a) => a -> ParsecT s PState Identity Instr
 parseINC b = do
   opsize <- instrOperandSize
   let reg = b .&. 0x0f
   rn <- registerName (fromIntegral reg)
   return $ Instr INC opsize [OpReg rn (fromIntegral reg)]
 
+parseDEC
+  :: (Bits a, Integral a) => a -> ParsecT s PState Identity Instr
 parseDEC b = do
   opsize <- instrOperandSize
   let reg = (b .&. 0x0f) - 8
   rn <- registerName (fromIntegral reg)
   return $ Instr DEC opsize [OpReg rn (fromIntegral reg)]
 
+parsePUSH
+  :: (Bits a, Show a, Integral a) =>
+     a -> ParsecT s PState Identity Instr
 parsePUSH b =
     let reg = b .&. 0x0f in do
       st <- getState
@@ -1350,6 +1444,9 @@ parsePUSH b =
           else return $ Instr PUSH opsize [OpReg rn
                                             (fromIntegral reg)]
 
+parsePOP
+  :: (Bits a, Show a, Integral a) =>
+     a -> ParsecT s PState Identity Instr
 parsePOP b =
     let reg = (b .&. 0x0f) - 8 in do
       st <- getState
@@ -1360,28 +1457,35 @@ parsePOP b =
                                          (fromIntegral reg)]
           else return $ Instr POP opsize [OpReg rn (fromIntegral reg)]
 
+parsePUSHA :: t -> ParsecT s PState Identity Instr
 parsePUSHA = do
   chooseOperandSize
     (\ _ -> return $ Instr PUSHA OPNONE [])
     (\ _ -> return $ Instr PUSHAD OPNONE [])
+parsePOPA :: t -> ParsecT s PState Identity Instr
 parsePOPA = do
   chooseOperandSize
     (\ _ -> return $ Instr POPA OPNONE [])
     (\ _ -> return $ Instr POPAD OPNONE [])
 
+parseBOUND :: t -> ParsecT [Word8] PState Identity Instr
 parseBOUND b = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OPNONE
   return $ Instr BOUND OPNONE [op2, op1]
 
+parseARPL :: t -> ParsecT [Word8] PState Identity Instr
 parseARPL b = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OP16
   let rn = regnames16 !! fromIntegral reg
   return $ Instr ARPL OPNONE [op1, (OpReg rn (fromIntegral reg))]
 
+parseMOVSXD :: t -> ParsecT [Word8] PState Identity Instr
 parseMOVSXD b = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OPNONE
   return $ Instr MOVSXD OPNONE [op2, op1]
 
+parsePUSHImm
+  :: (Num a, Eq a) => a -> ParsecT [Word8] PState Identity Instr
 parsePUSHImm 0x68 = do
   w <- anyWordZ
   opsize <- instrOperandSize
@@ -1391,6 +1495,8 @@ parsePUSHImm 0x6a = do
   opsize <- instrOperandSize
   return $ Instr PUSH opsize [OpImm (fromIntegral w)]
 
+parseIMUL
+  :: (Num a, Eq a) => a -> ParsecT [Word8] PState Identity Instr
 parseIMUL 0x69 = do
   opsize <- instrOperandSize
   (op1, op2, mod, reg, rm) <- parseAddress32 opsize
@@ -1402,16 +1508,21 @@ parseIMUL 0x6b = do
   imm <- anyWord8
   return $ Instr IMUL opsize [op2, op1, OpImm (fromIntegral imm)]
 
+parseINS :: (Num t, Monad m, Eq t) => t -> ParsecT s PState m Instr
 parseINS 0x6c = return $ Instr INS OP8 []
 parseINS b@0x6d = chooseOperandSize
                    (\ _ -> return $ Instr INS OP16 [])
                   (\ _ -> return $ Instr INS OP32 []) b
 
+parseOUTS
+  :: (Num t, Monad m, Eq t) => t -> ParsecT s PState m Instr
 parseOUTS 0x6e = return $ Instr OUTS OP8 []
 parseOUTS b@0x6f = chooseOperandSize
                      (\ _ -> return $ Instr OUTS OP16 [])
                      (\ _ -> return $ Instr OUTS OP32 []) b
 
+parseJccShort
+  :: (Bits a, Num a) => a -> ParsecT [Word8] PState Identity Instr
 parseJccShort b = do
   disp <- anyInt8
   pos <- getPosition
@@ -1420,6 +1531,8 @@ parseJccShort b = do
         [OpAddr (fromIntegral (fromIntegral disp + sourceColumn pos - 1) +
                 (startAddr st)) OPNONE]
 
+parseTEST
+  :: (Num a, Eq a) => a -> ParsecT [Word8] PState Identity Instr
 parseTEST 0x84 = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OP8
   return $ Instr TEST OP8 [op1, OpReg (regnames8 !! fromIntegral reg)
@@ -1429,6 +1542,8 @@ parseTEST 0x85 = do
   (op1, op2, mod, reg, rm) <- parseAddress32 opsize
   return $ Instr TEST opsize [op1, op2]
 
+parseXCHG
+  :: (Num a, Eq a) => a -> ParsecT [Word8] PState Identity Instr
 parseXCHG 0x86 = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OP8
   return $ Instr XCHG OP8 [op1, OpReg (regnames8 !! fromIntegral reg)
@@ -1438,6 +1553,8 @@ parseXCHG 0x87 = do
   (op1, op2, mod, reg, rm) <- parseAddress32 opsize
   return $ Instr XCHG opsize[op1, op2]
 
+parseMOV
+  :: (Num a, Eq a) => a -> ParsecT [Word8] PState Identity Instr
 parseMOV 0x88  = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OP8
   return $ Instr MOV OP8 [op1, OpReg (regnames8 !! fromIntegral reg)
@@ -1454,6 +1571,7 @@ parseMOV 0x8b  = do
   opsize <- instrOperandSize
   (op1, op2, mod, reg, rm) <- parseAddress32 opsize
   return $ Instr MOV opsize [op2, op1]
+
 parseMOV 0x8c  = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OP16
   let rn = segregnames !! (fromIntegral reg)
@@ -1468,6 +1586,7 @@ parseLEA b = do
   return $ Instr LEA OPNONE [op2, op1]
 
 
+parse0x90 :: Word8 -> ParsecT [Word8] PState Identity Instr
 parse0x90 b = do
   st <- getState
   if hasPrefix 0xf3 st
@@ -1491,6 +1610,7 @@ parseXCHGReg b =
                  return $ Instr XCHG OP64 [OpReg "rax" 0,
                                            OpReg rn (fromIntegral reg)]
 
+parseCBW_CWDE_CDQE :: Monad m => t -> ParsecT s PState m Instr
 parseCBW_CWDE_CDQE b = do
   st <- getState
   if in64BitMode st
@@ -1501,6 +1621,7 @@ parseCBW_CWDE_CDQE b = do
             (\ _ -> return $ Instr CBW OPNONE [])
             (\ _ -> return $ Instr CWDE OPNONE []) b
 
+parseCWD_CDQ_CQO :: Monad m => t -> ParsecT s PState m Instr
 parseCWD_CDQ_CQO b = do
   st <- getState
   if in64BitMode st
@@ -1511,6 +1632,7 @@ parseCWD_CDQ_CQO b = do
             (\ _ -> return $ Instr CWD OPNONE [])
             (\ _ -> return $ Instr CDQ OPNONE []) b
 
+parseCALLF :: t -> ParsecT [Word8] PState Identity Instr
 parseCALLF b = do
     w <- anyWord32
     s <- anyWord16
@@ -1519,6 +1641,7 @@ parseCALLF b = do
 
 -- FIXME: Check default/operand sizes.
 
+parsePUSHF :: Monad m => t -> ParsecT s PState m Instr
 parsePUSHF b = do
   st <- getState
   if in64BitMode st
@@ -1529,6 +1652,7 @@ parsePUSHF b = do
              (\ _ -> return $ Instr PUSHF OPNONE [])
              (\ _ -> return $ Instr PUSHFD OPNONE []) b
 
+parsePOPF :: Monad m => t -> ParsecT s PState m Instr
 parsePOPF b = do
   st <- getState
   if in64BitMode st
@@ -1539,10 +1663,13 @@ parsePOPF b = do
              (\ _ -> return $ Instr POPF OPNONE [])
              (\ _ -> return $ Instr POPFD OPNONE []) b
 
+parseJMPF :: t -> ParsecT [Word8] PState Identity Instr
 parseJMPF b = do
     w <- anyWord32
     return $ Instr JMPF OPNONE [OpImm w]
 
+parseMOVImm
+  :: (Num t, Eq t) => t -> ParsecT [Word8] PState Identity Instr
 parseMOVImm b@0xa0 = do
   chooseAddressSize
     (\ _ -> do w <- anyWord16
@@ -1572,18 +1699,22 @@ parseMOVImm b@0xa3 = do
     (\ _ -> do w <- anyWord32
                return $ Instr MOV opsize [OpImm w, OpReg reg 0]) b
 
+parseMOVS :: (Num a, Eq a) => a -> ParsecT s PState Identity Instr
 parseMOVS 0xa4 = return $ Instr MOVS OP8 []
 parseMOVS b@0xa5 = do
   st <- getState
   opsize <- instrOperandSize
   return $ Instr MOVS opsize []
 
+parseCMPS :: (Num a, Eq a) => a -> ParsecT s PState Identity Instr
 parseCMPS 0xa6 = return $ Instr CMPS OP8 []
 parseCMPS 0xa7 = do
   st <- getState
   opsize <- instrOperandSize
   return $ Instr CMPS opsize []
 
+parseTESTImm
+  :: (Num a, Eq a) => a -> ParsecT [Word8] PState Identity Instr
 parseTESTImm 0xa8 = do
   imm <- anyWord8
   return $ Instr TEST OP8 [OpReg "al" 0, OpImm (fromIntegral imm)]
@@ -1594,6 +1725,7 @@ parseTESTImm 0xa9 = do
   return $ Instr TEST opsize [OpReg rn 0, OpImm imm]
 
 
+parseSTOS :: (Num t, Eq t) => t -> ParsecT s PState Identity Instr
 parseSTOS 0xaa = return $ Instr STOS OP8 []
 parseSTOS b@0xab = do
   st <- getState
@@ -1608,6 +1740,7 @@ parseSTOS b@0xab = do
             (\ _ -> return $ Instr STOS opsize [])
             (\ _ -> return $ Instr STOS opsize []) b
 
+parseLODS :: (Num t, Eq t) => t -> ParsecT s PState Identity Instr
 parseLODS 0xac = return $ Instr LODS OP8 []
 parseLODS b@0xad = do
   st <- getState
@@ -1622,6 +1755,7 @@ parseLODS b@0xad = do
             (\ _ -> return $ Instr LODS opsize [])
             (\ _ -> return $ Instr LODS opsize []) b
 
+parseSCAS :: (Num t, Eq t) => t -> ParsecT s PState Identity Instr
 parseSCAS 0xae = return $ Instr SCAS OP8 []
 parseSCAS b@0xaf = do
   st <- getState
@@ -1658,15 +1792,20 @@ parseMOVImmToReg b = do
   return $ Instr MOV opsize [OpReg rn (fromIntegral reg),
                              OpImm (fromIntegral imm)]
 
+parseRETN
+  :: (Num a, Eq a) => a -> ParsecT [Word8] PState Identity Instr
 parseRETN 0xc2 = do
     w <- anyWord16
     return $ Instr RET OPNONE [OpImm (fromIntegral w)]
 parseRETN 0xc3 = return $ Instr RET OPNONE []
 
+parseLoadSegmentRegister
+  :: Opcode -> t -> ParsecT [Word8] PState Identity Instr
 parseLoadSegmentRegister opcode b = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OPNONE
   return $ Instr opcode OPNONE [op2, op1]
 
+parseENTER :: t -> ParsecT [Word8] PState Identity Instr
 parseENTER b = do
     w <- anyWord16
     b <- anyWord8
@@ -1678,6 +1817,7 @@ parseENTER b = do
 -- set is still quite irregular (even though much better than the integer
 -- ops), I haven't bothered yet.
 
+parseESC :: Word8 -> ParsecT [Word8] PState Identity Instr
 parseESC 0xd8 = do
   modrm <- anyWord8
   let modrm' :: Word8
@@ -1694,7 +1834,6 @@ parseESC 0xd8 = do
                     [OpFPReg 0, OpFPReg (fromIntegral ((modrm .&. 0x0f) - 8))]
  where ops = [FADD, FMUL, FCOM, FCOMP,
                FSUB, FSUBR, FDIV, FDIVR]
-
 parseESC b@0xd9 = do
   modrm <- anyWord8
   let modrm' :: Word8
@@ -1734,7 +1873,6 @@ parseESC b@0xd9 = do
        opsizes = [OPF32, OPNONE, OPF32, OPF32,
                    OPNONE, OPNONE, OPNONE, OPNONE]
        ops = [FLD, FXCH]
-
 parseESC 0xda = do
   modrm <- anyWord8
   let modrm' :: Word8
@@ -1752,7 +1890,6 @@ parseESC 0xda = do
  where ops = [FIADD, FIMUL, FICOM, FICOMP,
                FISUB, FISUBR, FIDIV, FIDIVR]
        ops' = [FCMOVB, FCMOVE, FCMOVBE, FCMOVU]
-
 parseESC 0xdb = do
   modrm <- anyWord8
   let modrm' :: Word8
@@ -1782,7 +1919,6 @@ parseESC 0xdb = do
                    OPNONE, OPF80, OPNONE, OPF80]
        ops' = [FCMOVNB, FCMOVNE, FCMOVNBE, FCMOVNU,
                 InvalidOpcode, FUCOMI, FCOMI, InvalidOpcode]
-
 parseESC 0xdc = do
   modrm <- anyWord8
   let modrm' :: Word8
@@ -1802,7 +1938,6 @@ parseESC 0xdc = do
                     [OpFPReg (fromIntegral ((modrm .&. 0x0f) - 8)), OpFPReg 0]
  where ops = [FADD, FMUL, FCOM, FCOMP,
                FSUB, FSUBR, FDIV, FDIVR]
-
 parseESC 0xdd = do
   modrm <- anyWord8
   let modrm' :: Word8
@@ -1830,7 +1965,6 @@ parseESC 0xdd = do
                    OPNONE, OPNONE, OPNONE, OP16]
        ops' = [FFREE, InvalidOpcode, FST, FSTP,
                 FUCOM, FUCOMP]
-
 parseESC 0xde = do
   modrm <- anyWord8
   let modrm' :: Word8
@@ -1854,8 +1988,6 @@ parseESC 0xde = do
                FISUB, FISUBR, FIDIV, FIDIVR]
        ops' = [FADDP, FMULP, InvalidOpcode, InvalidOpcode,
                 FSUBRP, FSUBP, FDIVRP, FDIVP]
-
-
 parseESC 0xdf = do
   modrm <- anyWord8
   let modrm' :: Word8
@@ -1883,6 +2015,8 @@ parseESC 0xdf = do
        ops' = [InvalidOpcode, InvalidOpcode, InvalidOpcode, InvalidOpcode,
                 InvalidOpcode, FUCOMIP, FCOMIP, InvalidOpcode]
 
+parseINImm
+  :: (Num a, Eq a) => a -> ParsecT [Word8] PState Identity Instr
 parseINImm 0xe4 = do
     b <- anyWord8
     return $ Instr IN OP8 [OpReg "al" 0, OpImm (fromIntegral b)]
@@ -1891,6 +2025,10 @@ parseINImm 0xe5 = do
     rn <- registerName 0
     opsize <- instrOperandSize
     return $ Instr IN opsize [OpReg rn 0, OpImm (fromIntegral b)]
+
+
+parseOUTImm
+  :: (Num a, Eq a) => a -> ParsecT [Word8] PState Identity Instr
 parseOUTImm 0xe6 = do
     b <- anyWord8
     return $ Instr OUT OP8 [OpImm (fromIntegral b), OpReg "al" 0]
@@ -1900,12 +2038,16 @@ parseOUTImm 0xe7 = do
     opsize <- instrOperandSize
     return $ Instr OUT opsize [OpImm (fromIntegral b), OpReg rn 0]
 
+parseIN :: (Num a, Eq a) => a -> ParsecT s PState Identity Instr
 parseIN 0xec = do
     return $ Instr IN OP8 [OpReg "al" 0, OpReg "dx" 2]
 parseIN 0xed = do
     rn <- registerName 0
     opsize <- instrOperandSize
     return $ Instr IN opsize [OpReg rn 0, OpReg "dx" 2]
+
+
+parseOUT :: (Num a, Eq a) => a -> ParsecT s PState Identity Instr
 parseOUT 0xee = do
     return $ Instr OUT OP8 [OpReg "dx" 2, OpReg "al" 0]
 parseOUT 0xef = do
@@ -1916,6 +2058,7 @@ parseOUT 0xef = do
 -- Return the name of the register encoded with R.  Take 64-bit mode and
 -- possible REX and operand-size prefixes into account.
 
+registerName :: Monad m => Int -> ParsecT s PState m [Char]
 registerName r = do
     st <- getState
     if in64BitMode st && hasREX rex_R st
@@ -1924,6 +2067,7 @@ registerName r = do
               BIT16 -> return $ regnames16 !! r
               BIT32 -> return $ regnames32 !! r
 
+instrOperandSize :: ParsecT s PState Identity InstrOperandSize
 instrOperandSize = do
     st <- getState
     if in64BitMode st && hasREX rex_W st
@@ -1940,6 +2084,7 @@ segregnames = ["es", "cs", "ss", "ds", "fs", "gs", "<invalid>", "<invalid>"]
 mmxregs = ["mm0", "mm1", "mm2", "mm3", "mm4", "mm5", "mm6", "mm7"]
 xmmregs = ["xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"]
 
+jccname :: (Num a, Eq a) => a -> Opcode
 jccname 0 = JO
 jccname 1 = JNO
 jccname 2 = JB
@@ -1957,6 +2102,7 @@ jccname 13 = JGE
 jccname 14 = JLE
 jccname 15 = JG
 
+setccname :: (Num a, Eq a) => a -> Opcode
 setccname 0 = SETO
 setccname 1 = SETNO
 setccname 2 = SETB
@@ -1974,6 +2120,7 @@ setccname 13 = SETGE
 setccname 14 = SETLE
 setccname 15 = SETG
 
+cmovccname :: (Num a, Eq a) => a -> Opcode
 cmovccname 0 = CMOVO
 cmovccname 1 = CMOVNO
 cmovccname 2 = CMOVB
@@ -1991,6 +2138,8 @@ cmovccname 13 = CMOVGE
 cmovccname 14 = CMOVLE
 cmovccname 15 = CMOVG
 
+parseGrp1
+  :: (Num a, Eq a) => a -> ParsecT [Word8] PState Identity Instr
 parseGrp1 0x80 = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OP8
   immb <- anyWord8
@@ -2016,6 +2165,7 @@ parseGrp1 0x83 = do
 aluOps = [ADD, OR, ADC, SBB, AND, SUB, XOR, CMP]
 
 
+parseGrp1A :: Word8 -> ParsecT [Word8] PState Identity Instr
 parseGrp1A b = do
    opsize <- instrOperandSize
    (op1, op2, mod, reg, rm) <- parseAddress32 opsize
@@ -2023,6 +2173,8 @@ parseGrp1A b = do
      0 -> return $ Instr POP opsize [op1]
      _ -> parseInvalidOpcode b
 
+parseGrp2
+  :: (Num a, Eq a) => a -> ParsecT [Word8] PState Identity Instr
 parseGrp2 0xc0 = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OP8
   immb <- anyWord8
@@ -2050,6 +2202,8 @@ parseGrp2 0xd3 = do
   return $ Instr (shiftOps !! fromIntegral reg) opsize [op1, OpReg "cl" 1]
 shiftOps = [ROL, ROR, RCL, RCR, SHL, SHR, InvalidOpcode, SAR]
 
+parseGrp3
+  :: (Num a, Eq a) => a -> ParsecT [Word8] PState Identity Instr
 parseGrp3 0xf6 = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OP8
   case reg of
@@ -2077,6 +2231,7 @@ parseGrp3 0xf7 = do
     6 -> return $ Instr DIV opsize [OpReg rn 0, op1]
     7 -> return $ Instr IDIV opsize [OpReg rn 0, op1]
 
+parseGrp4 :: Word8 -> ParsecT [Word8] PState Identity Instr
 parseGrp4 b = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OP8
   case reg of
@@ -2084,6 +2239,7 @@ parseGrp4 b = do
     1 -> return $ Instr DEC OP8 [op1]
     _ -> parseInvalidOpcode b
 
+parseGrp5 :: Word8 -> ParsecT [Word8] PState Identity Instr
 parseGrp5 b = do
   opsize <- instrOperandSize
   (op1, op2, mod, reg, rm) <- parseAddress32 opsize
@@ -2099,6 +2255,7 @@ parseGrp5 b = do
     6 -> return $ Instr PUSH opsize [op1]
     _ -> parseInvalidOpcode b
 
+parseGrp6 :: Word8 -> ParsecT [Word8] PState Identity Instr
 parseGrp6 b = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OPNONE
   case reg of
@@ -2110,6 +2267,7 @@ parseGrp6 b = do
     5 -> return $ Instr VERW OPNONE [op1]
     _ -> parseInvalidOpcode b
 
+parseGrp7 :: Word8 -> ParsecT [Word8] PState Identity Instr
 parseGrp7 b = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OPNONE
   case mod of
@@ -2141,6 +2299,7 @@ parseGrp7 b = do
            6 -> return $ Instr LMSW OPNONE [op1]
            7 -> return $ Instr INVLPG OPNONE [op1]
 
+parseGrp8 :: Word8 -> ParsecT [Word8] PState Identity Instr
 parseGrp8 b = do
   opsize <- instrOperandSize
   (op1, op2, mod, reg, rm) <- parseAddress32 opsize
@@ -2152,6 +2311,7 @@ parseGrp8 b = do
     7 -> return $ Instr BTC opsize [op1, OpImm (fromIntegral imm)]
     _ -> parseInvalidOpcode b
 
+parseGrp9 :: Word8 -> ParsecT [Word8] PState Identity Instr
 parseGrp9 b = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OPNONE
   st <- getState
@@ -2169,8 +2329,11 @@ parseGrp9 b = do
             7 -> return $ Instr VMPTRST OPNONE [op1]
             _ -> parseInvalidOpcode b
 
+parseGrp10 :: Word8 -> ParsecT [Word8] PState Identity Instr
 parseGrp10 = parseInvalidOpcode
 
+parseGrp11
+  :: (Num a, Eq a) => a -> ParsecT [Word8] PState Identity Instr
 parseGrp11 0xc6 = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OP8
   imm <- anyWord8
@@ -2181,6 +2344,10 @@ parseGrp11 0xc7 = do
   imm <- anyWordZ
   return $ Instr MOV opsize [op1, OpImm (fromIntegral imm)]
 
+mmxInstr
+  :: Integral a =>
+     t
+     -> t1 -> t2 -> a -> Opcode -> ParsecT [Word8] PState Identity Instr
 mmxInstr op1 mod reg rm name = do
   st <- getState
   imm <- anyWord8
@@ -2192,6 +2359,7 @@ mmxInstr op1 mod reg rm name = do
            [OpReg (mmxregs !! fromIntegral rm) (fromIntegral rm),
             OpImm (fromIntegral imm)]
 
+parseGrp12 :: Word8 -> ParsecT [Word8] PState Identity Instr
 parseGrp12 b = do
   st <- getState
   let opsize = if hasPrefix 0x66 st then OP128 else OP64
@@ -2203,6 +2371,8 @@ parseGrp12 b = do
            6 -> mmxInstr op1 mod reg rm PSLLW
            _ -> parseInvalidOpcode b
     _ -> parseInvalidOpcode b
+
+parseGrp13 :: Word8 -> ParsecT [Word8] PState Identity Instr
 parseGrp13 b = do
   st <- getState
   let opsize = if hasPrefix 0x66 st then OP128 else OP64
@@ -2214,6 +2384,8 @@ parseGrp13 b = do
            6 -> mmxInstr op1 mod reg rm PSLLD
            _ -> parseInvalidOpcode b
     _ -> parseInvalidOpcode b
+
+parseGrp14 :: Word8 -> ParsecT [Word8] PState Identity Instr
 parseGrp14 b = do
   st <- getState
   let opsize = if hasPrefix 0x66 st then OP128 else OP64
@@ -2232,6 +2404,7 @@ parseGrp14 b = do
            _ -> parseInvalidOpcode b
     _ -> parseInvalidOpcode b
 
+parseGrp15 :: Word8 -> ParsecT [Word8] PState Identity Instr
 parseGrp15 b = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OPNONE
   case mod of
@@ -2247,6 +2420,8 @@ parseGrp15 b = do
             3 -> return $ Instr STMXCSR OPNONE [op1]
             7 -> return $ Instr CLFLUSH OPNONE [op1]
             _ -> parseInvalidOpcode b
+
+parseGrp16 :: Word8 -> ParsecT [Word8] PState Identity Instr
 parseGrp16 b = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OPNONE
   case mod of
@@ -2258,6 +2433,13 @@ parseGrp16 b = do
             3 -> return $ Instr PREFETCHT2 OPNONE [op1]
             _ -> parseInvalidOpcode b
 
+parseXmmVW
+  :: Opcode
+     -> Opcode
+     -> Opcode
+     -> Opcode
+     -> t
+     -> ParsecT [Word8] PState Identity Instr
 parseXmmVW p p0xf3 p0x66 p0xf2 b =
     do (op1, op2, mod, reg, rm) <- parseAddress32 OP128
        st <- getState
@@ -2268,10 +2450,17 @@ parseXmmVW p p0xf3 p0x66 p0xf2 b =
        if hasPrefix 0xf3 st
           then return $ Instr p0xf3 OP128 [v, w]
           else if hasPrefix 0x66 st
-                  then return $ Instr p0x66 OP128 [v, w]
+                 then return $ Instr p0x66 OP128 [v, w]
                   else if hasPrefix 0xf2 st
                           then return $ Instr p0xf2 OP128 [v, w]
                           else return $ Instr p OP128 [v, w]
+parseXmmWV
+  :: Opcode
+     -> Opcode
+     -> Opcode
+     -> Opcode
+     -> t
+     -> ParsecT [Word8] PState Identity Instr
 parseXmmWV p p0xf3 p0x66 p0xf2 b =
     do (op1, op2, mod, reg, rm) <- parseAddress32 OP128
        st <- getState
@@ -2287,6 +2476,13 @@ parseXmmWV p p0xf3 p0x66 p0xf2 b =
                           then return $ Instr p0xf2 OP128 [v, w]
                           else return $ Instr p OP128 [v, w]
 
+parseXmmGU
+  :: Opcode
+     -> Opcode
+     -> Opcode
+     -> Opcode
+     -> t
+     -> ParsecT [Word8] PState Identity Instr
 parseXmmGU p p0xf3 p0x66 p0xf2 b =
     do (mod, reg, rm) <- parseModRM
        st <- getState
@@ -2300,17 +2496,31 @@ parseXmmGU p p0xf3 p0x66 p0xf2 b =
                           then return $ Instr p0xf2 OP32 [g, u]
                           else return $ Instr p OP32 [g, u]
 
+parseMOVUPS
+  :: (Num t, Eq t) => t -> ParsecT [Word8] PState Identity Instr
 parseMOVUPS b@0x10 = parseXmmVW MOVUPS MOVSS MOVUPD MOVSD b
 parseMOVUPS b@0x11 = parseXmmWV MOVUPS MOVSS MOVUPD MOVSD b
 parseMOVLPS b@0x12 = parseXmmWV MOVLPS MOVSLDUP MOVLPD MOVDDUP b
 parseMOVLPS b@0x13 = parseXmmVW MOVLPS InvalidOpcode MOVLPD InvalidOpcode b
+
+parseUNPCKLPS
+  :: (Num t, Eq t) => t -> ParsecT [Word8] PState Identity Instr
 parseUNPCKLPS b@0x14 =
     parseXmmVW UNPCKLPS InvalidOpcode UNPCKLPD InvalidOpcode b
+
+parseUNPCKHPS
+  :: (Num t, Eq t) => t -> ParsecT [Word8] PState Identity Instr
 parseUNPCKHPS b@0x15 =
     parseXmmVW UNPCKHPS InvalidOpcode UNPCKHPD InvalidOpcode b
+
+
+parseMOVHPS
+  :: (Num t, Eq t) => t -> ParsecT [Word8] PState Identity Instr
 parseMOVHPS b@0x16 = parseXmmVW MOVHPS MOVLSDUP MOVHPD MOVLHPS b
 parseMOVHPS b@0x17 = parseXmmVW MOVHPS InvalidOpcode MOVHPD InvalidOpcode b
 
+parseMOVCtrlDebug
+  :: (Num a, Eq a) => a -> ParsecT [Word8] PState Identity Instr
 parseMOVCtrlDebug 0x20 =
     do (mod, reg, rm) <- parseModRM
        return $ Instr MOV OPNONE [OpReg (regnames32 !! fromIntegral rm)
@@ -2333,56 +2543,139 @@ parseMOVCtrlDebug 0x23 =
                                   (fromIntegral rm)]
 
 
+parseMOVAPS
+  :: (Num t, Eq t) => t -> ParsecT [Word8] PState Identity Instr
 parseMOVAPS b@0x28 = parseXmmVW MOVAPS InvalidOpcode MOVAPD InvalidOpcode b
 parseMOVAPS b@0x29 = parseXmmWV MOVAPS InvalidOpcode MOVAPD InvalidOpcode b
+
+parseCVTI2PS :: Word8 -> ParsecT [Word8] PState Identity Instr
 parseCVTI2PS = parseUnimplemented
+
+parseMOVNTPS :: t -> ParsecT [Word8] PState Identity Instr
 parseMOVNTPS = parseXmmWV MOVNTPS InvalidOpcode MOVNTPD InvalidOpcode
+
+parseCVTPS2PI :: Word8 -> ParsecT [Word8] PState Identity Instr
 parseCVTPS2PI = parseUnimplemented
+
+parseCVTTPS2PI :: Word8 -> ParsecT [Word8] PState Identity Instr
 parseCVTTPS2PI = parseUnimplemented
+
+parseUCOMISS :: t -> ParsecT [Word8] PState Identity Instr
 parseUCOMISS = parseXmmVW UCOMISS InvalidOpcode UCOMISD InvalidOpcode
+
+parseCOMISS :: t -> ParsecT [Word8] PState Identity Instr
 parseCOMISS = parseXmmVW COMISS InvalidOpcode COMISD InvalidOpcode
 
+parseCMOVcc
+  :: (Bits a, Num a) => a -> ParsecT [Word8] PState Identity Instr
 parseCMOVcc b= do
   opsize <- instrOperandSize
   (op1, op2, mod, reg, rm) <- parseAddress32 opsize
   return $ Instr (cmovccname (b .&. 0xf)) OPNONE [op2, op1]
 
+parseMOVSKPS :: t -> ParsecT [Word8] PState Identity Instr
 parseMOVSKPS = parseXmmGU MOVMSKPS InvalidOpcode MOVMSKPD InvalidOpcode
 
+
+parseSQRTPS :: t -> ParsecT [Word8] PState Identity Instr
 parseSQRTPS = parseXmmVW SQRTPS SQRTSS SQRTPD SQRTSD
+
+parseRSQRTPS :: t -> ParsecT [Word8] PState Identity Instr
 parseRSQRTPS = parseXmmVW RSQRTPS RSQRTSS InvalidOpcode InvalidOpcode
+
+parseRCPPS :: t -> ParsecT [Word8] PState Identity Instr
 parseRCPPS = parseXmmVW RCPPS RCPSS InvalidOpcode InvalidOpcode
+
+parseCVTPS2PD :: Word8 -> ParsecT [Word8] PState Identity Instr
 parseCVTPS2PD = parseUnimplemented
+
+parseANDNPS :: t -> ParsecT [Word8] PState Identity Instr
 parseANDNPS = parseXmmVW ANDNPS InvalidOpcode ANDNPD InvalidOpcode
+
+parseANDPS :: t -> ParsecT [Word8] PState Identity Instr
 parseANDPS =  parseXmmVW ANDPS InvalidOpcode ANDPD InvalidOpcode
+
 parseORPS = parseXmmVW ORPS InvalidOpcode ORPD InvalidOpcode
+
+parseXORPS :: t -> ParsecT [Word8] PState Identity Instr
 parseXORPS = parseXmmVW XORPS InvalidOpcode XORPD InvalidOpcode
+
+parseADDPS :: t -> ParsecT [Word8] PState Identity Instr
 parseADDPS = parseXmmVW ADDPS ADDSS ADDPD ADDSD
+
+parseMULPS :: t -> ParsecT [Word8] PState Identity Instr
 parseMULPS = parseXmmVW MULPS MULSS MULPD MULSD
+
+parseCVTDQ2PS :: Word8 -> ParsecT [Word8] PState Identity Instr
 parseCVTDQ2PS = parseUnimplemented
+
+parsePUNPCKLWD :: Word8 -> ParsecT [Word8] PState Identity Instr
 parsePUNPCKLWD = parseUnimplemented
+
+parsePACKSSWB :: Word8 -> ParsecT [Word8] PState Identity Instr
 parsePACKSSWB = parseUnimplemented
+
+parsePUNPCKHWD :: Monad m => Word8 -> m Instr
 parsePUNPCKHWD = parseUnimplemented
+
+parseSUBPS :: t -> ParsecT [Word8] PState Identity Instr
 parseSUBPS = parseXmmVW SUBPS SUBSS SUBPD SUBSD
+
+parseMINPS :: t -> ParsecT [Word8] PState Identity Instr
 parseMINPS = parseXmmVW MINPS MINSS MINPD MINSD
+
+parseDIVPS :: t -> ParsecT [Word8] PState Identity Instr
 parseDIVPS = parseXmmVW DIVPS DIVSS DIVPD DIVSD
+
+parseMAXPS :: t -> ParsecT [Word8] PState Identity Instr
 parseMAXPS = parseXmmVW MAXPS MAXSS MAXPD MAXSD
+
+parsePUNPCKLBW :: Word8 -> ParsecT [Word8] PState Identity Instr
 parsePUNPCKLBW = parseUnimplemented
+
+parsePUNPCKLDQ :: Word8 -> ParsecT [Word8] PState Identity Instr
 parsePUNPCKLDQ = parseUnimplemented
+
+parsePACKUSWB :: Word8 -> ParsecT [Word8] PState Identity Instr
 parsePACKUSWB = parseUnimplemented
+
+parsePCMPGTB :: Word8 -> ParsecT [Word8] PState Identity Instr
 parsePCMPGTB = parseUnimplemented
+
+parsePCMPGTW :: Word8 -> ParsecT [Word8] PState Identity Instr
 parsePCMPGTW = parseUnimplemented
+
+parsePCMPGTD :: Word8 -> ParsecT [Word8] PState Identity Instr
 parsePCMPGTD = parseUnimplemented
+
+parsePUNPCKHBW :: Word8 -> ParsecT [Word8] PState Identity Instr
 parsePUNPCKHBW = parseUnimplemented
+
+parsePUNPCKHDQ :: Word8 -> ParsecT [Word8] PState Identity Instr
 parsePUNPCKHDQ = parseUnimplemented
+
+parsePACKSSDW :: Word8 -> ParsecT [Word8] PState Identity Instr
 parsePACKSSDW = parseUnimplemented
+
+parsePUNPCKLQDQ :: Word8 -> ParsecT [Word8] PState Identity Instr
 parsePUNPCKLQDQ = parseUnimplemented
+
+parsePUNPCKHQDQ :: Monad m => Word8 -> m Instr
 parsePUNPCKHQDQ = parseUnimplemented
+
+parsePSHUFW :: Word8 -> ParsecT [Word8] PState Identity Instr
 parsePSHUFW = parseUnimplemented
+
+parsePCMPEQB :: Word8 -> ParsecT [Word8] PState Identity Instr
 parsePCMPEQB = parseUnimplemented
+
+parsePCMPEQW :: Monad m => Word8 -> m Instr
 parsePCMPEQW = parseUnimplemented
+
+parsePCMPEQD :: Word8 -> ParsecT [Word8] PState Identity Instr
 parsePCMPEQD = parseUnimplemented
 
+parseVMREAD :: t -> ParsecT [Word8] PState Identity Instr
 parseVMREAD b =
     do st <- getState
        if in64BitMode st
@@ -2390,6 +2683,8 @@ parseVMREAD b =
                   return $ Instr VMREAD OP64 [op1, op2]
           else do (op1, op2, mod, reg, rm) <- parseAddress32 OP32
                   return $ Instr VMREAD OP32 [op1, op2]
+
+parseVMWRITE :: t -> ParsecT [Word8] PState Identity Instr
 parseVMWRITE b =
     do st <- getState
        if in64BitMode st
@@ -2413,6 +2708,8 @@ parseJccLong b = do
         [OpAddr (fromIntegral (disp' + sourceColumn pos - 1) +
                 (startAddr st)) OPNONE]
 
+parseSETcc
+  :: (Bits a, Num a) => a -> ParsecT [Word8] PState Identity Instr
 parseSETcc b = do
   (op1, op2, mod, reg, rm) <- parseAddress32 OP8
   case op1 of
@@ -2420,43 +2717,62 @@ parseSETcc b = do
                       [OpReg (regnames8 !! fromIntegral num) num]
     _ -> return $ Instr (setccname (b .&. 0xf)) OPNONE [op1]
 
+parseSHLD
+  :: (Num a, Eq a) => a -> ParsecT [Word8] PState Identity Instr
 parseSHLD 0xa4 =
     do opsize <- instrOperandSize
        (op1, op2, mod, reg, rm) <- parseAddress32 opsize
        b <- anyWord8
        opsize <- instrOperandSize
        return $ Instr SHLD opsize [op1, op2, OpImm (fromIntegral b)]
+
 parseSHLD 0xa5 =
     do opsize <- instrOperandSize
        (op1, op2, mod, reg, rm) <- parseAddress32 opsize
        opsize <- instrOperandSize
        return $ Instr SHLD opsize [op1, op2, OpReg "cl" 1]
+
 parseSHRD 0xac =
     do opsize <- instrOperandSize
        (op1, op2, mod, reg, rm) <- parseAddress32 opsize
        b <- anyWord8
        opsize <- instrOperandSize
        return $ Instr SHRD opsize [op1, op2, OpImm (fromIntegral b)]
+
 parseSHRD 0xad =
     do opsize <- instrOperandSize
        (op1, op2, mod, reg, rm) <- parseAddress32 opsize
        opsize <- instrOperandSize
        return $ Instr SHRD opsize [op1, op2, OpReg "cl" 1]
 
+parseCMPPS :: Word8 -> ParsecT [Word8] PState Identity Instr
 parseCMPPS = parseUnimplemented
+
+parseMOVNTI :: Word8 -> ParsecT [Word8] PState Identity Instr
 parseMOVNTI = parseUnimplemented
+
+parsePINSRW :: Word8 -> ParsecT [Word8] PState Identity Instr
 parsePINSRW = parseUnimplemented
+
+parsePEXTRW :: Word8 -> ParsecT [Word8] PState Identity Instr
 parsePEXTRW = parseUnimplemented
+
+parseSHUFPS :: Word8 -> ParsecT [Word8] PState Identity Instr
 parseSHUFPS = parseUnimplemented
 
+parseBSWAP
+  :: (Bits a, Integral a) => a -> ParsecT s PState Identity Instr
 parseBSWAP b =
     do let reg = (b .&. 0xf) - 8
        r <- registerName (fromIntegral reg)
        opsize <- instrOperandSize
        return $ Instr BSWAP opsize [OpReg r (fromIntegral reg)]
 
+parseADDSUBPS :: t -> ParsecT [Word8] PState Identity Instr
 parseADDSUBPS = parseXmmVW InvalidOpcode InvalidOpcode ADDSUBPD ADDUBPS
 
+parseMmxXmmPQVW
+  :: Opcode -> t -> ParsecT [Word8] PState Identity Instr
 parseMmxXmmPQVW opcode b =
     do st <- getState
        if hasPrefix 0x66 st
@@ -2475,6 +2791,8 @@ parseMmxXmmPQVW opcode b =
                             op -> op
                   return $ Instr opcode OP128 [p, q]
 
+parseMmxXmmMPMV
+  :: Opcode -> Opcode -> t -> ParsecT [Word8] PState Identity Instr
 parseMmxXmmMPMV opcode1 opcode2 b =
     do st <- getState
        if hasPrefix 0x66 st
@@ -2487,6 +2805,8 @@ parseMmxXmmMPMV opcode1 opcode2 b =
                           (fromIntegral reg)
                   return $ Instr opcode1 OP128 [op1, p]
 
+parseMmxXmmPNVU
+  :: Opcode -> t -> ParsecT [Word8] PState Identity Instr
 parseMmxXmmPNVU opcode b =
     do st <- getState
        if hasPrefix 0x66 st
@@ -2503,11 +2823,23 @@ parseMmxXmmPNVU opcode b =
                           (fromIntegral reg)
                   return $ Instr opcode OP128 [p, n]
 
+parsePSRLW :: t -> ParsecT [Word8] PState Identity Instr
 parsePSRLW = parseMmxXmmPQVW PSRLW
+
+parsePSRLD :: t -> ParsecT [Word8] PState Identity Instr
 parsePSRLD = parseMmxXmmPQVW PSRLD
+
+parsePSRLQ :: t -> ParsecT [Word8] PState Identity Instr
 parsePSRLQ = parseMmxXmmPQVW PSRLQ
+
+parsePADDQ :: t -> ParsecT [Word8] PState Identity Instr
 parsePADDQ = parseMmxXmmPQVW PADDQ
+
+
+parsePMULLW :: t -> ParsecT [Word8] PState Identity Instr
 parsePMULLW = parseMmxXmmPQVW PMULLW
+
+parseMOVQ :: Word8 -> ParsecT [Word8] PState Identity Instr
 parseMOVQ b@0x6f = parseUnimplemented b
 parseMOVQ b@0x7f = parseUnimplemented b
 parseMOVQ b@0xd6 =
@@ -2532,6 +2864,7 @@ parseMOVQ b@0xd6 =
                                  (fromIntegral rm)]
                        else parseInvalidOpcode b
 
+parsePMOVMSKB :: t -> ParsecT [Word8] PState Identity Instr
 parsePMOVMSKB b =
     do st <- getState
        (mod, reg, rm) <- parseModRM
@@ -2546,30 +2879,79 @@ parsePMOVMSKB b =
                               (fromIntegral reg),
                               OpReg (mmxregs !! (fromIntegral rm))
                               (fromIntegral rm)]
+
+parsePSUBUSB :: t -> ParsecT [Word8] PState Identity Instr
 parsePSUBUSB = parseMmxXmmPQVW PSUBUSB
+
+parsePSUBUSW :: t -> ParsecT [Word8] PState Identity Instr
 parsePSUBUSW = parseMmxXmmPQVW PSUBUSW
+
+parsePMINUB :: t -> ParsecT [Word8] PState Identity Instr
 parsePMINUB = parseMmxXmmPQVW PMINUB
+
+parsePAND :: t -> ParsecT [Word8] PState Identity Instr
 parsePAND = parseMmxXmmPQVW PAND
+
+parsePADDUSB :: t -> ParsecT [Word8] PState Identity Instr
 parsePADDUSB = parseMmxXmmPQVW PADDUSB
+
+parsePADDUSW :: t -> ParsecT [Word8] PState Identity Instr
 parsePADDUSW = parseMmxXmmPQVW PADDUSW
+
+parsePMAXUB :: t -> ParsecT [Word8] PState Identity Instr
 parsePMAXUB = parseMmxXmmPQVW PMAXUB
+
+parsePANDN :: t -> ParsecT [Word8] PState Identity Instr
 parsePANDN = parseMmxXmmPQVW PANDN
+
+parsePAVGB :: t -> ParsecT [Word8] PState Identity Instr
 parsePAVGB = parseMmxXmmPQVW PAVGB
+
+parsePSRAW :: t -> ParsecT [Word8] PState Identity Instr
 parsePSRAW = parseMmxXmmPQVW PSRAW
+
+parsePSRAD :: t -> ParsecT [Word8] PState Identity Instr
 parsePSRAD = parseMmxXmmPQVW PSRAD
+
+parsePAVGW :: t -> ParsecT [Word8] PState Identity Instr
 parsePAVGW = parseMmxXmmPQVW PAVGW
+
+parseCVTPD2DQ :: Word8 -> ParsecT [Word8] PState Identity Instr
 parseCVTPD2DQ = parseUnimplemented
+
+parsePMULHUW :: t -> ParsecT [Word8] PState Identity Instr
 parsePMULHUW = parseMmxXmmPQVW PMULHUW
+
+parsePMULHW :: t -> ParsecT [Word8] PState Identity Instr
 parsePMULHW = parseMmxXmmPQVW PMULHW
+
+parseMOVNTQ :: t -> ParsecT [Word8] PState Identity Instr
 parseMOVNTQ = parseMmxXmmMPMV MOVNTQ MOVNTDQ
+
+parsePSUBSB :: t -> ParsecT [Word8] PState Identity Instr
 parsePSUBSB = parseMmxXmmPQVW PSUBSB
+
+parsePSUBSQ :: t -> ParsecT [Word8] PState Identity Instr
 parsePSUBSQ = parseMmxXmmPQVW PSUBSQ
+
+parsePMINSW :: t -> ParsecT [Word8] PState Identity Instr
 parsePMINSW = parseMmxXmmPQVW PMINSW
+
+parsePOR :: t -> ParsecT [Word8] PState Identity Instr
 parsePOR = parseMmxXmmPQVW POR
+
+parsePADDSB :: t -> ParsecT [Word8] PState Identity Instr
 parsePADDSB = parseMmxXmmPQVW PADDSB
+
+parsePADDSW :: t -> ParsecT [Word8] PState Identity Instr
 parsePADDSW = parseMmxXmmPQVW PADDSW
+
+parsePMAXSW :: t -> ParsecT [Word8] PState Identity Instr
 parsePMAXSW = parseMmxXmmPQVW PMAXSW
+
+parsePXOR :: t -> ParsecT [Word8] PState Identity Instr
 parsePXOR = parseMmxXmmPQVW PXOR
+
 parseLDDQU b =
   do st <- getState
      if hasPrefix 0xf2 st
@@ -2577,17 +2959,45 @@ parseLDDQU b =
                let v = OpReg (xmmregs !! fromIntegral reg) $ fromIntegral reg
                return $ Instr LDDQU OP128 [v, op1]
        else parseInvalidOpcode b
+
+parsePSLLW :: t -> ParsecT [Word8] PState Identity Instr
 parsePSLLW = parseMmxXmmPQVW PSLLW
+
+parsePSLLD :: t -> ParsecT [Word8] PState Identity Instr
 parsePSLLD = parseMmxXmmPQVW PSLLD
+
+parsePSLLQ :: t -> ParsecT [Word8] PState Identity Instr
 parsePSLLQ = parseMmxXmmPQVW PSLLQ
+
+parsePMULUDQ :: t -> ParsecT [Word8] PState Identity Instr
 parsePMULUDQ = parseMmxXmmPQVW PMULUDQ
+
+parsePMADDWD :: t -> ParsecT [Word8] PState Identity Instr
 parsePMADDWD = parseMmxXmmPQVW PMADDWD
+
+parsePSADBW :: t -> ParsecT [Word8] PState Identity Instr
 parsePSADBW = parseMmxXmmPQVW PSADBW
+
+parseMASKMOVQ :: t -> ParsecT [Word8] PState Identity Instr
 parseMASKMOVQ = parseMmxXmmPNVU MASKMOVQ
+
+parsePSUBB :: t -> ParsecT [Word8] PState Identity Instr
 parsePSUBB = parseMmxXmmPQVW PSUBB
+
+parsePSUBW :: t -> ParsecT [Word8] PState Identity Instr
 parsePSUBW = parseMmxXmmPQVW PSUBW
+
+parsePSUBD :: t -> ParsecT [Word8] PState Identity Instr
 parsePSUBD = parseMmxXmmPQVW PSUBD
+
+parsePSUBQ :: t -> ParsecT [Word8] PState Identity Instr
 parsePSUBQ = parseMmxXmmPQVW PSUBQ
+
+parsePADDB :: t -> ParsecT [Word8] PState Identity Instr
 parsePADDB = parseMmxXmmPQVW PADDB
+
+parsePADDW :: t -> ParsecT [Word8] PState Identity Instr
 parsePADDW = parseMmxXmmPQVW PADDW
+
+parsePADDD :: t -> ParsecT [Word8] PState Identity Instr
 parsePADDD = parseMmxXmmPQVW PADDD
