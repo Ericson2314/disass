@@ -3,7 +3,7 @@
 module Language.Assembly.X86.Print where
 
 import Data.Char
-import Data.Int
+
 import Data.List
 import Data.Word
 
